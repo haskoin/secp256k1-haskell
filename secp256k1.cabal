@@ -11,13 +11,10 @@ copyright:           (c) 2013 Pieter Wuille
 category:            Crypto
 build-type:          Custom
 extra-source-files:
-    secp256k1/
-    secp256k1/contrib
     secp256k1/contrib/lax_der_privatekey_parsing.h
     secp256k1/contrib/lax_der_parsing.c
     secp256k1/contrib/lax_der_privatekey_parsing.c
     secp256k1/contrib/lax_der_parsing.h
-    secp256k1/src
     secp256k1/src/field_impl.h
     secp256k1/src/field.h
     secp256k1/src/bench_sign.c
@@ -26,10 +23,7 @@ extra-source-files:
     secp256k1/src/scalar_4x64_impl.h
     secp256k1/src/field_5x52_int128_impl.h
     secp256k1/src/eckey_impl.h
-    secp256k1/src/java
     secp256k1/src/java/org_bitcoin_NativeSecp256k1.c
-    secp256k1/src/java/org
-    secp256k1/src/java/org/bitcoin
     secp256k1/src/java/org/bitcoin/NativeSecp256k1.java
     secp256k1/src/java/org_bitcoin_NativeSecp256k1.h
     secp256k1/src/tests.c
@@ -46,18 +40,14 @@ extra-source-files:
     secp256k1/src/secp256k1.c
     secp256k1/src/scalar_4x64.h
     secp256k1/src/num_gmp.h
-    secp256k1/src/modules
-    secp256k1/src/modules/schnorr
     secp256k1/src/modules/schnorr/schnorr.h
     secp256k1/src/modules/schnorr/tests_impl.h
     secp256k1/src/modules/schnorr/Makefile.am.include
     secp256k1/src/modules/schnorr/main_impl.h
     secp256k1/src/modules/schnorr/schnorr_impl.h
-    secp256k1/src/modules/recovery
     secp256k1/src/modules/recovery/tests_impl.h
     secp256k1/src/modules/recovery/Makefile.am.include
     secp256k1/src/modules/recovery/main_impl.h
-    secp256k1/src/modules/ecdh
     secp256k1/src/modules/ecdh/tests_impl.h
     secp256k1/src/modules/ecdh/Makefile.am.include
     secp256k1/src/modules/ecdh/main_impl.h
@@ -85,28 +75,22 @@ extra-source-files:
     secp256k1/src/scalar_8x32_impl.h
     secp256k1/src/ecmult.h
     secp256k1/src/bench_schnorr_verify.c
-    secp256k1/include
     secp256k1/include/secp256k1_recovery.h
     secp256k1/include/secp256k1_schnorr.h
     secp256k1/include/secp256k1.h
     secp256k1/include/secp256k1_ecdh.h
     secp256k1/TODO
-    secp256k1/obj
     secp256k1/obj/.gitignore
-    secp256k1/.git
     secp256k1/.gitignore
     secp256k1/README.md
     secp256k1/autogen.sh
     secp256k1/Makefile.am
-    secp256k1/build-aux
-    secp256k1/build-aux/m4
     secp256k1/build-aux/m4/ax_prog_cc_for_build.m4
     secp256k1/build-aux/m4/bitcoin_secp.m4
     secp256k1/COPYING
     secp256k1/.travis.yml
     secp256k1/libsecp256k1.pc.in
     secp256k1/configure.ac
-    secp256k1/sage
     secp256k1/sage/secp256k1.sage
     secp256k1/sage/group_prover.sage
     secp256k1/sage/weierstrass_prover.sage
