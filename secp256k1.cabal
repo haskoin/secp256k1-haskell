@@ -94,6 +94,7 @@ extra-source-files:
     secp256k1/sage/secp256k1.sage
     secp256k1/sage/group_prover.sage
     secp256k1/sage/weierstrass_prover.sage
+    README.md
     stack.yaml
 cabal-version:       >=1.10
 
