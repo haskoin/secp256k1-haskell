@@ -8,7 +8,7 @@ Although it is more common that you’ll want to just use this library as part o
 
 ```sh
 git clone --recursive https://github.com/xenog/secp256k1.git
-cd secp256k1.git
+cd secp256k1
 stack install
 ```
 
