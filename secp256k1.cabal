@@ -1,13 +1,13 @@
 name:                secp256k1
 version:             0.4.3
-synopsis:            secp256k1 bindings for Haskell
+synopsis:            Bindings for secp256k1 library from Bitcoin Core
 description:         Please see README.md
 homepage:            http://github.com/haskoin/secp256k1#readme
-license:             MIT
-license-file:        secp256k1/COPYING
-author:              Pieter Wuille
+license:             PublicDomain
+license-file:        UNLICENSE
+author:              Jean-Pierre Rupp <root@haskoin.com>
 maintainer:          Jean-Pierre Rupp <root@haskoin.com>
-copyright:           (c) 2013 Pieter Wuille
+copyright:           (c) 2016 Jean-Pierre Rupp
 category:            Crypto
 build-type:          Custom
 extra-source-files:
