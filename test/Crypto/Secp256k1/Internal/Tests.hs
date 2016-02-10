@@ -249,7 +249,7 @@ ecdsaSignTest = do
                     -- ecdsaSign x s m k nonce_function_default nullPtr
                     ecdsaSign x s m k nullFunPtr nullPtr
                 ret2 <- ecdsaSignatureSerializeDer x o ol s
-                unless (isSuccess ret2) $error "could not serialize signature"
+                unless (isSuccess ret2) $ error "could not serialize signature"
                 len <- peek ol
                 sig <- packCStringLen (castPtr o, fromIntegral len)
                 return (ret1, sig)
