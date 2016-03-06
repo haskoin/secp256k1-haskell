@@ -1,8 +1,8 @@
 name:                secp256k1
-version:             0.4.4
+version:             0.4.5
 synopsis:            Bindings for secp256k1 library from Bitcoin Core
 description:         Please see README.md
-homepage:            http://github.com/haskoin/secp256k1#readme
+homepage:            http://github.com/haskoin/secp256k1-haskell#readme
 license:             PublicDomain
 license-file:        UNLICENSE
 author:              Jean-Pierre Rupp <root@haskoin.com>
@@ -113,9 +113,7 @@ library
                        , string-conversions
     default-language:    Haskell2010
     ghc-options:         -Wall
-                         -O3
     cc-options:          -DHAVE_CONFIG_H
-                         -O3
     c-sources:           secp256k1/src/secp256k1.c, secp256k1/contrib/lax_der_parsing.c
     include-dirs:        secp256k1, secp256k1/include, include
 
@@ -144,4 +142,4 @@ test-suite secp256k1-test
 
 source-repository head
     type:     git
-    location: https://github.com/haskoin/secp256k1
+    location: https://github.com/haskoin/secp256k1-haskell.git
