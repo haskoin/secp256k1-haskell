@@ -11,13 +11,14 @@ exposed for hacking and experimentation.
 module Crypto.Secp256k1.Internal where
 
 import           Control.Monad
-import           Data.Binary          (Binary, get, put)
-import           Data.Binary.Get      (runGet)
-import           Data.Binary.Put      (runPut)
+import           Data.Binary          (Binary)
+import qualified Data.Binary          as Binary
 import           Data.ByteString      (ByteString, packCStringLen,
                                        useAsCStringLen)
-import           Data.ByteString.Lazy (fromStrict, toStrict)
-import           Data.LargeWord       (LargeKey (LargeKey), Word256)
+import           Data.LargeWord       (LargeKey (LargeKey), Word256, hiHalf,
+                                       loHalf)
+import           Data.Serialize       (Serialize)
+import qualified Data.Serialize       as Cereal
 import           Foreign
 import           Foreign.C
 import           System.Entropy
@@ -114,15 +115,44 @@ instance Storable Sig64 where
 instance Storable CompactSig where
     sizeOf _ = 64
     alignment _ = 1
-    peek p = (runGet get . fromStrict) <$> packCStringLen (castPtr p, 64)
-    poke p cs = useByteString bs $ \(b, _) -> copyArray (castPtr p) b 64 where
-        bs = toStrict $ runPut $ put cs
+    peek p = do
+        bs <- packCStringLen (castPtr p, 64)
+        case Cereal.runGet Cereal.get bs of
+            Right x -> return x
+            Left e -> error e
+    poke p cs =
+        useByteString bs $ \(b, _) -> copyArray (castPtr p) b 64
+      where
+        bs = Cereal.runPut $ Cereal.put cs
 
 instance Binary CompactSig where
     get = do
-        LargeKey s r <- get
+        LargeKey s r <- Binary.get
         return $ CompactSig r s
-    put (CompactSig r s) = put (LargeKey s r)
+    put (CompactSig r s) = Binary.put (LargeKey s r)
+
+instance Serialize CompactSig where
+    get = do
+        w1 <- Cereal.get
+        w2 <- Cereal.get
+        w3 <- Cereal.get
+        w4 <- Cereal.get
+        w5 <- Cereal.get
+        w6 <- Cereal.get
+        w7 <- Cereal.get
+        w8 <- Cereal.get
+        return $ CompactSig
+            (LargeKey w1 $ LargeKey w2 $ LargeKey w3 w4)
+            (LargeKey w5 $ LargeKey w6 $ LargeKey w7 w8)
+    put (CompactSig r s) = do
+        Cereal.put $ loHalf r
+        Cereal.put $ loHalf $ hiHalf r
+        Cereal.put $ loHalf $ hiHalf $ hiHalf r
+        Cereal.put $ hiHalf $ hiHalf $ hiHalf r
+        Cereal.put $ loHalf s
+        Cereal.put $ loHalf $ hiHalf s
+        Cereal.put $ loHalf $ hiHalf $ hiHalf s
+        Cereal.put $ hiHalf $ hiHalf $ hiHalf s
 
 instance Storable Msg32 where
     sizeOf _ = 32

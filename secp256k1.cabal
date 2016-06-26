@@ -1,5 +1,5 @@
 name:                secp256k1
-version:             0.4.5
+version:             0.4.6
 synopsis:            Bindings for secp256k1 library from Bitcoin Core
 description:         Please see README.md
 homepage:            http://github.com/haskoin/secp256k1-haskell#readme
@@ -106,6 +106,7 @@ library
                        , base16-bytestring
                        , binary
                        , bytestring
+                       , cereal
                        , entropy
                        , largeword
                        , mtl
@@ -125,7 +126,6 @@ test-suite secp256k1-test
                        , Crypto.Secp256k1.Internal.Tests
     build-depends:       base
                        , base16-bytestring
-                       , binary
                        , bytestring
                        , cryptohash
                        , entropy
