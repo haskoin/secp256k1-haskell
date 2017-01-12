@@ -41,6 +41,7 @@ module Crypto.Secp256k1
     , importCompactSig
     -- * Recoverable
     , RecSig
+    , CompactRecSig(..)
     , importCompactRecSig
     , exportCompactRecSig
     , convertRecSig
