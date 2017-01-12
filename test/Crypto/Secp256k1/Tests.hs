@@ -1,6 +1,7 @@
 module Crypto.Secp256k1.Tests (tests) where
 
 import           Crypto.Secp256k1
+import           Data.Binary
 import qualified Data.ByteString.Base16               as B16
 import qualified Data.ByteString.Char8                as B8
 import           Data.Maybe                           (fromMaybe)
@@ -15,23 +16,29 @@ tests :: [Test]
 tests =
     [ testGroup "Signing"
         [ testProperty "Signing messages" signMsgTest
+        , testProperty "Recoverably signing messages" signRecMsgTest
         , testProperty "Bad signatures" badSignatureTest
+        , testProperty "Bad recoverable signatures" badRecSignatureTest
         , testProperty "Normalize signatures" normalizeSigTest
+        , testProperty "Recover public keys" recoverTest
         ]
     , testGroup "Serialization"
         [ testProperty "Serialize public key" serializePubKeyTest
         , testProperty "Serialize DER signature" serializeSigTest
         , testProperty "Serialize lax DER signature" serializeLaxSigTest
         , testProperty "Serialize compact signature" serializeCompactSigTest
+        , testProperty "Serialize compact recoverable signature" serializeCompactRecSigTest
         , testProperty "Serialize secret key" serializeSecKeyTest
         , testProperty "Show/Read public key" (showRead :: PubKey -> Bool)
         , testProperty "Show/Read secret key" (showRead :: SecKey -> Bool)
         , testProperty "Show/Read tweak" (showReadTweak :: SecKey -> Bool)
         , testProperty "Show/Read signature" (showReadSig :: (SecKey, Msg) -> Bool)
+        , testProperty "Show/Read recoverable signature" (showReadRecSig :: (SecKey, Msg) -> Bool)
         , testProperty "Show/Read message" (showRead :: Msg -> Bool)
         , testProperty "String public key" isStringPubKey
         , testProperty "String secret key" isStringSecKey
         , testProperty "String signature" isStringSig
+        , testProperty "String recoverable signature" isStringRecSig
         , testProperty "String message" isStringMsg
         , testProperty "String tweak" isStringTweak
         ]
@@ -52,6 +59,11 @@ isStringSig :: (SecKey, Msg) -> Bool
 isStringSig (k, m) = g == fromString (cs hex) where
     g = signMsg k m
     hex = B16.encode $ exportSig g
+
+isStringRecSig :: (SecKey, Msg) -> Bool
+isStringRecSig (k, m) = g == fromString (cs hex) where
+    g = signRecMsg k m
+    hex = B16.encode . cs . encode $ exportCompactRecSig g
 
 isStringMsg :: Msg -> Bool
 isStringMsg m = m == fromString (cs m') where
@@ -75,6 +87,10 @@ showReadSig :: (SecKey, Msg) -> Bool
 showReadSig (k, m) = showRead sig where
     sig = signMsg k m
 
+showReadRecSig :: (SecKey, Msg) -> Bool
+showReadRecSig (k, m) = showRead recSig where
+    recSig = signRecMsg k m
+
 showRead :: (Show a, Read a, Eq a) => a -> Bool
 showRead x = read (show x) == x
 
@@ -83,9 +99,23 @@ signMsgTest (fm, fk) = verifySig fp fg fm where
     fp = derivePubKey fk
     fg = signMsg fk fm
 
+signRecMsgTest :: (Msg, SecKey) -> Bool
+signRecMsgTest (fm, fk) = verifySig fp fg fm where
+    fp = derivePubKey fk
+    fg = convertRecSig $ signRecMsg fk fm
+
+recoverTest :: (Msg, SecKey) -> Bool
+recoverTest (fm, fk) = recover fg fm == fp where
+    fp = derivePubKey fk
+    fg = signRecMsg fk fm
+
 badSignatureTest :: (Msg, SecKey, PubKey) -> Bool
 badSignatureTest (fm, fk, fp) = not $ verifySig fp fg fm where
     fg = signMsg fk fm
+
+badRecSignatureTest :: (Msg, SecKey, PubKey) -> Bool
+badRecSignatureTest (fm, fk, fp) = not $ verifySig fp fg fm where
+    fg = convertRecSig $ signRecMsg fk fm
 
 normalizeSigTest :: (Msg, SecKey) -> Bool
 normalizeSigTest (fm, fk) = not norm && sig == fg where
@@ -121,6 +151,14 @@ serializeCompactSigTest (fm, fk) =
         Nothing -> False
   where
     fg = signMsg fk fm
+
+serializeCompactRecSigTest :: (Msg, SecKey) -> Bool
+serializeCompactRecSigTest (fm, fk) =
+    case importCompactRecSig $ exportCompactRecSig fg of
+        Just fg' -> fg == fg'
+        Nothing -> False
+  where
+    fg = signRecMsg fk fm
 
 serializeSecKeyTest :: SecKey -> Bool
 serializeSecKeyTest fk =
