@@ -39,7 +39,7 @@ configure args flags pd lbi = do
         args' = args ++ ["--with-gcc=" ++ ccProg]
     maybeExit $ runInRepo v "sh" args' (Just env')
   where
-    args = "./configure" : configureArgs False flags
+    args = "./configure" : "--enable-module-recovery" : configureArgs False flags
     v = fromFlag $ configVerbosity flags
     appendToEnvironment (key, val) [] = [(key, val)]
     appendToEnvironment (key, val) (kv@(k, v) : rest)
