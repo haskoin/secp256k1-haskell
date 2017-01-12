@@ -191,8 +191,8 @@ instance Binary CompactRecSig where
         v <- Binary.getWord8
         return $ CompactRecSig r s v
     put (CompactRecSig r s v) = do
-      Binary.putWord8 v
-      Binary.put (LargeKey s r)
+        Binary.put (LargeKey s r)
+        Binary.putWord8 v
 
 instance Serialize CompactRecSig where
     get = do
@@ -468,7 +468,8 @@ foreign import ccall
     ecdsaRecoverableSignatureParseCompact
     :: Ptr Ctx
     -> Ptr RecSig65
-    -> Ptr CompactRecSig
+    -> Ptr CompactSig
+    -> CInt
     -> IO Ret
 
 foreign import ccall
@@ -484,7 +485,7 @@ foreign import ccall
     ecdsaRecoverableSignatureSerializeCompact
     :: Ptr Ctx
     -> Ptr CompactSig
-    -> Ptr Word8
+    -> Ptr CInt
     -> Ptr RecSig65
     -> IO Ret
 

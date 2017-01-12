@@ -386,11 +386,14 @@ combinePubKeys pubs = unsafePerformIO $ pointers [] pubs $ \ps ->
 
 -- | Parse a compact ECDSA signature (64 bytes + recovery id).
 importCompactRecSig :: CompactRecSig -> Maybe RecSig
-importCompactRecSig c = unsafePerformIO $ alloca $ \pc -> do
+importCompactRecSig cr = unsafePerformIO $ alloca $ \pc -> do
+    let
+      c = CompactSig (getCompactRecSigR cr) (getCompactRecSigS cr)
+      recid = fromIntegral $ getCompactRecSigV cr
     poke pc c
     fg <- mallocForeignPtr
     ret <- withForeignPtr fg $ \pg ->
-        ecdsaRecoverableSignatureParseCompact ctx pg pc
+        ecdsaRecoverableSignatureParseCompact ctx pg pc recid
     if isSuccess ret then return $ Just $ RecSig fg else return Nothing
 
 -- | Serialize an ECDSA signature in compact format (64 bytes + recovery id).
@@ -400,7 +403,7 @@ exportCompactRecSig (RecSig fg) = unsafePerformIO $
         ret <- ecdsaRecoverableSignatureSerializeCompact ctx pc pr pg
         unless (isSuccess ret) $ error "Could not obtain compact signature"
         CompactSig r s <- peek pc
-        v <- peek pr
+        v <- fromIntegral <$> peek pr
         return $ CompactRecSig r s v
 
 -- | Convert a recoverable signature into a normal signature.
