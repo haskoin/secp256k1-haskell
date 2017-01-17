@@ -42,7 +42,7 @@ data CompactSig =
         }
     deriving (Show, Eq, Ord)
 
-newtype RecSig65 = RecSig65 { getSig65 :: ByteString }
+newtype RecSig65 = RecSig65 { getRecSig65 :: ByteString }
     deriving (Read, Show, Eq, Ord)
 
 data CompactRecSig =
