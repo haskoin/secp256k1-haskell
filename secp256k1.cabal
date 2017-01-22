@@ -12,12 +12,10 @@ category:            Crypto
 build-type:          Custom
 extra-source-files:
     secp256k1/Makefile.am
-    secp256k1/Makefile.in
     secp256k1/include/secp256k1_schnorr.h
     secp256k1/include/secp256k1_ecdh.h
     secp256k1/include/secp256k1.h
     secp256k1/include/secp256k1_recovery.h
-    secp256k1/config.log
     secp256k1/contrib/lax_der_privatekey_parsing.h
     secp256k1/contrib/lax_der_parsing.c
     secp256k1/contrib/lax_der_parsing.h
