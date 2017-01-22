@@ -95,7 +95,7 @@ extra-source-files:
     secp256k1/src/util.h
     secp256k1/src/tests.c
     secp256k1/src/ecmult_static_context.h
-    secp256k1/src/libsecp256k1-config.h.in~
+    secp256k1/src/libsecp256k1-config.h.in
     secp256k1/src/.deps/bench_sign.Po
     secp256k1/src/.deps/bench_verify.Po
     secp256k1/src/.deps/bench_ecdh.Po
@@ -139,7 +139,6 @@ extra-source-files:
     secp256k1/.git
     secp256k1/gen_context.o
     secp256k1/configure.ac
-    secp256k1/gen_context
     secp256k1/sage/group_prover.sage
     secp256k1/sage/weierstrass_prover.sage
     secp256k1/sage/secp256k1.sage
