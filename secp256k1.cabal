@@ -12,40 +12,21 @@ category:            Crypto
 build-type:          Custom
 extra-source-files:
     secp256k1/Makefile.am
-    secp256k1/Makefile.in
     secp256k1/include/secp256k1_schnorr.h
     secp256k1/include/secp256k1_ecdh.h
     secp256k1/include/secp256k1.h
     secp256k1/include/secp256k1_recovery.h
-    secp256k1/config.log
     secp256k1/contrib/lax_der_privatekey_parsing.h
     secp256k1/contrib/lax_der_parsing.c
     secp256k1/contrib/lax_der_parsing.h
     secp256k1/contrib/lax_der_privatekey_parsing.c
     secp256k1/autogen.sh
     secp256k1/COPYING
-    secp256k1/build-aux/config.sub
-    secp256k1/build-aux/missing
-    secp256k1/build-aux/ltmain.sh
-    secp256k1/build-aux/test-driver
-    secp256k1/build-aux/install-sh
-    secp256k1/build-aux/config.guess
-    secp256k1/build-aux/compile
-    secp256k1/build-aux/depcomp
     secp256k1/build-aux/m4/bitcoin_secp.m4
-    secp256k1/build-aux/m4/ltoptions.m4
-    secp256k1/build-aux/m4/ltversion.m4
-    secp256k1/build-aux/m4/lt~obsolete.m4
-    secp256k1/build-aux/m4/ltsugar.m4
-    secp256k1/build-aux/m4/libtool.m4
     secp256k1/build-aux/m4/ax_jni_include_dir.m4
     secp256k1/build-aux/m4/ax_prog_cc_for_build.m4
     secp256k1/obj/.gitignore
-    secp256k1/libsecp256k1.pc
-    secp256k1/configure
-    secp256k1/aclocal.m4
     secp256k1/.gitignore
-    secp256k1/libtool
     secp256k1/src/bench_recover.c
     secp256k1/src/ecmult_const.h
     secp256k1/src/bench_sign.c
@@ -72,14 +53,12 @@ extra-source-files:
     secp256k1/src/field_impl.h
     secp256k1/src/field_5x52.h
     secp256k1/src/group.h
-    secp256k1/src/stamp-h1
     secp256k1/src/eckey_impl.h
     secp256k1/src/bench_ecdh.c
     secp256k1/src/secp256k1.c
     secp256k1/src/num_gmp.h
     secp256k1/src/basic-config.h
     secp256k1/src/num_impl.h
-    secp256k1/src/libsecp256k1-config.h.in
     secp256k1/src/scalar_impl.h
     secp256k1/src/bench.h
     secp256k1/src/eckey.h
@@ -94,16 +73,6 @@ extra-source-files:
     secp256k1/src/java/org_bitcoin_NativeSecp256k1.c
     secp256k1/src/util.h
     secp256k1/src/tests.c
-    secp256k1/src/ecmult_static_context.h
-    secp256k1/src/libsecp256k1-config.h.in~
-    secp256k1/src/.deps/bench_sign.Po
-    secp256k1/src/.deps/bench_verify.Po
-    secp256k1/src/.deps/bench_ecdh.Po
-    secp256k1/src/.deps/bench_recover.Po
-    secp256k1/src/.deps/bench_internal-bench_internal.Po
-    secp256k1/src/.deps/tests-tests.Po
-    secp256k1/src/.deps/libsecp256k1_la-secp256k1.Plo
-    secp256k1/src/.deps/bench_schnorr_verify.Po
     secp256k1/src/scalar_4x64.h
     secp256k1/src/bench_schnorr_verify.c
     secp256k1/src/scalar_8x32.h
@@ -122,24 +91,12 @@ extra-source-files:
     secp256k1/src/field_10x26.h
     secp256k1/src/ecmult.h
     secp256k1/src/ecmult_const_impl.h
-    secp256k1/src/libsecp256k1-config.h
     secp256k1/src/field_5x52_impl.h
     secp256k1/src/scalar_8x32_impl.h
-    secp256k1/autom4te.cache/traces.2
-    secp256k1/autom4te.cache/output.0
-    secp256k1/autom4te.cache/traces.1
-    secp256k1/autom4te.cache/requests
-    secp256k1/autom4te.cache/output.1
-    secp256k1/autom4te.cache/traces.0
-    secp256k1/autom4te.cache/output.2
-    secp256k1/Makefile
-    secp256k1/config.status
     secp256k1/TODO
     secp256k1/README.md
     secp256k1/.git
-    secp256k1/gen_context.o
     secp256k1/configure.ac
-    secp256k1/gen_context
     secp256k1/sage/group_prover.sage
     secp256k1/sage/weierstrass_prover.sage
     secp256k1/sage/secp256k1.sage
@@ -176,6 +133,7 @@ test-suite secp256k1-test
                        , Crypto.Secp256k1.Internal.Tests
     build-depends:       base
                        , base16-bytestring
+                       , binary
                        , bytestring
                        , cryptohash
                        , entropy

@@ -42,6 +42,17 @@ data CompactSig =
         }
     deriving (Show, Eq, Ord)
 
+newtype RecSig65 = RecSig65 { getRecSig65 :: ByteString }
+    deriving (Read, Show, Eq, Ord)
+
+data CompactRecSig =
+    CompactRecSig
+        { getCompactRecSigR :: Word256
+        , getCompactRecSigS :: Word256
+        , getCompactRecSigV :: Word8
+        }
+    deriving (Show, Eq, Ord)
+
 newtype Seed32 = Seed32 { getSeed32 :: ByteString }
     deriving (Read, Show, Eq, Ord)
 
@@ -145,6 +156,61 @@ instance Serialize CompactSig where
             (LargeKey w1 $ LargeKey w2 $ LargeKey w3 w4)
             (LargeKey w5 $ LargeKey w6 $ LargeKey w7 w8)
     put (CompactSig r s) = do
+        Cereal.put $ loHalf r
+        Cereal.put $ loHalf $ hiHalf r
+        Cereal.put $ loHalf $ hiHalf $ hiHalf r
+        Cereal.put $ hiHalf $ hiHalf $ hiHalf r
+        Cereal.put $ loHalf s
+        Cereal.put $ loHalf $ hiHalf s
+        Cereal.put $ loHalf $ hiHalf $ hiHalf s
+        Cereal.put $ hiHalf $ hiHalf $ hiHalf s
+
+instance Storable RecSig65 where
+    sizeOf _ = 65
+    alignment _ = 1
+    peek p = RecSig65 <$> packByteString (castPtr p, 65)
+    poke p (RecSig65 k) = useByteString k $
+        \(b, _) -> copyArray (castPtr p) b 65
+
+instance Storable CompactRecSig where
+    sizeOf _ = 65
+    alignment _ = 1
+    peek p = do
+        bs <- packCStringLen (castPtr p, 65)
+        case Cereal.runGet Cereal.get bs of
+            Right x -> return x
+            Left e -> error e
+    poke p cs =
+        useByteString bs $ \(b, _) -> copyArray (castPtr p) b 65
+      where
+        bs = Cereal.runPut $ Cereal.put cs
+
+instance Binary CompactRecSig where
+    get = do
+        LargeKey s r <- Binary.get
+        v <- Binary.getWord8
+        return $ CompactRecSig r s v
+    put (CompactRecSig r s v) = do
+        Binary.put (LargeKey s r)
+        Binary.putWord8 v
+
+instance Serialize CompactRecSig where
+    get = do
+        w1 <- Cereal.get
+        w2 <- Cereal.get
+        w3 <- Cereal.get
+        w4 <- Cereal.get
+        w5 <- Cereal.get
+        w6 <- Cereal.get
+        w7 <- Cereal.get
+        w8 <- Cereal.get
+        v <- Cereal.getWord8
+        return $ CompactRecSig
+            (LargeKey w1 $ LargeKey w2 $ LargeKey w3 w4)
+            (LargeKey w5 $ LargeKey w6 $ LargeKey w7 w8)
+            v
+    put (CompactRecSig r s v) = do
+        Cereal.putWord8 v
         Cereal.put $ loHalf r
         Cereal.put $ loHalf $ hiHalf r
         Cereal.put $ loHalf $ hiHalf $ hiHalf r
@@ -395,4 +461,50 @@ foreign import ccall
     -> Ptr PubKey64 -- ^ pointer to public key storage
     -> Ptr (Ptr PubKey64) -- ^ pointer to array of public keys
     -> CInt -- ^ number of public keys
+    -> IO Ret
+
+foreign import ccall
+    "secp256k1_recovery.h secp256k1_ecdsa_recoverable_signature_parse_compact"
+    ecdsaRecoverableSignatureParseCompact
+    :: Ptr Ctx
+    -> Ptr RecSig65
+    -> Ptr CompactSig
+    -> CInt
+    -> IO Ret
+
+foreign import ccall
+    "secp256k1_recovery.h secp256k1_ecdsa_recoverable_signature_convert"
+    ecdsaRecoverableSignatureConvert
+    :: Ptr Ctx
+    -> Ptr Sig64
+    -> Ptr RecSig65
+    -> IO Ret
+
+foreign import ccall
+    "secp256k1_recovery.h secp256k1_ecdsa_recoverable_signature_serialize_compact"
+    ecdsaRecoverableSignatureSerializeCompact
+    :: Ptr Ctx
+    -> Ptr CompactSig
+    -> Ptr CInt
+    -> Ptr RecSig65
+    -> IO Ret
+
+foreign import ccall
+    "secp256k1_recovery.h secp256k1_ecdsa_sign_recoverable"
+    ecdsaSignRecoverable
+    :: Ptr Ctx
+    -> Ptr RecSig65
+    -> Ptr Msg32
+    -> Ptr SecKey32
+    -> FunPtr (NonceFunction a)
+    -> Ptr a -- ^ nonce data
+    -> IO Ret
+
+foreign import ccall
+    "secp256k1_recovery.h secp256k1_ecdsa_recover"
+    ecdsaRecover
+    :: Ptr Ctx
+    -> Ptr PubKey64
+    -> Ptr RecSig65
+    -> Ptr Msg32
     -> IO Ret
