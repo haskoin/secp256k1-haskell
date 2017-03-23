@@ -15,10 +15,8 @@ import           Data.Binary          (Binary)
 import qualified Data.Binary          as Binary
 import           Data.ByteString      (ByteString, packCStringLen,
                                        useAsCStringLen)
-import           Data.LargeWord       (LargeKey (LargeKey), Word256, hiHalf,
-                                       loHalf)
-import           Data.Serialize       (Serialize)
-import qualified Data.Serialize       as Cereal
+import qualified Data.ByteString.Lazy as Lazy
+import           Data.LargeWord       (LargeKey (LargeKey), Word256)
 import           Foreign
 import           Foreign.C
 import           System.Entropy
@@ -128,42 +126,17 @@ instance Storable CompactSig where
     alignment _ = 1
     peek p = do
         bs <- packCStringLen (castPtr p, 64)
-        case Cereal.runGet Cereal.get bs of
-            Right x -> return x
-            Left e -> error e
+        return (Binary.decode (Lazy.fromStrict bs))
     poke p cs =
         useByteString bs $ \(b, _) -> copyArray (castPtr p) b 64
       where
-        bs = Cereal.runPut $ Cereal.put cs
+        bs = Lazy.toStrict (Binary.encode cs)
 
 instance Binary CompactSig where
     get = do
         LargeKey s r <- Binary.get
         return $ CompactSig r s
     put (CompactSig r s) = Binary.put (LargeKey s r)
-
-instance Serialize CompactSig where
-    get = do
-        w1 <- Cereal.get
-        w2 <- Cereal.get
-        w3 <- Cereal.get
-        w4 <- Cereal.get
-        w5 <- Cereal.get
-        w6 <- Cereal.get
-        w7 <- Cereal.get
-        w8 <- Cereal.get
-        return $ CompactSig
-            (LargeKey w1 $ LargeKey w2 $ LargeKey w3 w4)
-            (LargeKey w5 $ LargeKey w6 $ LargeKey w7 w8)
-    put (CompactSig r s) = do
-        Cereal.put $ loHalf r
-        Cereal.put $ loHalf $ hiHalf r
-        Cereal.put $ loHalf $ hiHalf $ hiHalf r
-        Cereal.put $ hiHalf $ hiHalf $ hiHalf r
-        Cereal.put $ loHalf s
-        Cereal.put $ loHalf $ hiHalf s
-        Cereal.put $ loHalf $ hiHalf $ hiHalf s
-        Cereal.put $ hiHalf $ hiHalf $ hiHalf s
 
 instance Storable RecSig65 where
     sizeOf _ = 65
@@ -177,13 +150,11 @@ instance Storable CompactRecSig where
     alignment _ = 1
     peek p = do
         bs <- packCStringLen (castPtr p, 65)
-        case Cereal.runGet Cereal.get bs of
-            Right x -> return x
-            Left e -> error e
+        return (Binary.decode (Lazy.fromStrict bs))
     poke p cs =
         useByteString bs $ \(b, _) -> copyArray (castPtr p) b 65
       where
-        bs = Cereal.runPut $ Cereal.put cs
+        bs = Lazy.toStrict (Binary.encode cs)
 
 instance Binary CompactRecSig where
     get = do
@@ -193,32 +164,6 @@ instance Binary CompactRecSig where
     put (CompactRecSig r s v) = do
         Binary.put (LargeKey s r)
         Binary.putWord8 v
-
-instance Serialize CompactRecSig where
-    get = do
-        w1 <- Cereal.get
-        w2 <- Cereal.get
-        w3 <- Cereal.get
-        w4 <- Cereal.get
-        w5 <- Cereal.get
-        w6 <- Cereal.get
-        w7 <- Cereal.get
-        w8 <- Cereal.get
-        v <- Cereal.getWord8
-        return $ CompactRecSig
-            (LargeKey w1 $ LargeKey w2 $ LargeKey w3 w4)
-            (LargeKey w5 $ LargeKey w6 $ LargeKey w7 w8)
-            v
-    put (CompactRecSig r s v) = do
-        Cereal.putWord8 v
-        Cereal.put $ loHalf r
-        Cereal.put $ loHalf $ hiHalf r
-        Cereal.put $ loHalf $ hiHalf $ hiHalf r
-        Cereal.put $ hiHalf $ hiHalf $ hiHalf r
-        Cereal.put $ loHalf s
-        Cereal.put $ loHalf $ hiHalf s
-        Cereal.put $ loHalf $ hiHalf $ hiHalf s
-        Cereal.put $ hiHalf $ hiHalf $ hiHalf s
 
 instance Storable Msg32 where
     sizeOf _ = 32
