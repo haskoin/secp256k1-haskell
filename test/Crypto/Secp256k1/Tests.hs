@@ -110,8 +110,8 @@ recoverTest (fm, fk) = recover fg fm == Just fp where
     fp = derivePubKey fk
     fg = signRecMsg fk fm
 
-badRecoverTest :: (Msg, SecKey, PubKey) -> Bool
-badRecoverTest (fm, fk, fp) = recover fg fm /= Just fp where
+badRecoverTest :: (Msg, SecKey) -> Bool
+badRecoverTest (fm, fk) = recover fg fm == Nothing where
     fg = signRecMsg fk fm
 
 badSignatureTest :: (Msg, SecKey, PubKey) -> Bool
