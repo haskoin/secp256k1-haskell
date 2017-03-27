@@ -21,6 +21,7 @@ tests =
         , testProperty "Bad recoverable signatures" badRecSignatureTest
         , testProperty "Normalize signatures" normalizeSigTest
         , testProperty "Recover public keys" recoverTest
+        , testProperty "Bad recover public keys" badRecoverTest
         ]
     , testGroup "Serialization"
         [ testProperty "Serialize public key" serializePubKeyTest
@@ -105,8 +106,12 @@ signRecMsgTest (fm, fk) = verifySig fp fg fm where
     fg = convertRecSig $ signRecMsg fk fm
 
 recoverTest :: (Msg, SecKey) -> Bool
-recoverTest (fm, fk) = recover fg fm == fp where
+recoverTest (fm, fk) = recover fg fm == Just fp where
     fp = derivePubKey fk
+    fg = signRecMsg fk fm
+
+badRecoverTest :: (Msg, SecKey) -> Bool
+badRecoverTest (fm, fk) = recover fg fm == Nothing where
     fg = signRecMsg fk fm
 
 badSignatureTest :: (Msg, SecKey, PubKey) -> Bool

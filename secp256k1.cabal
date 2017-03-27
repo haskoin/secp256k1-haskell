@@ -113,7 +113,6 @@ library
                        , base16-bytestring
                        , binary
                        , bytestring
-                       , cereal
                        , entropy
                        , largeword
                        , mtl

@@ -387,7 +387,10 @@ combinePubKeys pubs = unsafePerformIO $ pointers [] pubs $ \ps ->
 
 -- | Parse a compact ECDSA signature (64 bytes + recovery id).
 importCompactRecSig :: CompactRecSig -> Maybe RecSig
-importCompactRecSig cr = unsafePerformIO $ alloca $ \pc -> do
+importCompactRecSig cr =
+  if getCompactRecSigV cr `notElem` [0,1,2,3]
+  then Nothing
+  else unsafePerformIO $ alloca $ \pc -> do
     let
       c = CompactSig (getCompactRecSigR cr) (getCompactRecSigS cr)
       recid = fromIntegral $ getCompactRecSigV cr
@@ -429,13 +432,12 @@ signRecMsg (SecKey fk) (Msg fm) = unsafePerformIO $
         return $ RecSig fg
 
 -- | Recover an ECDSA public key from a signature.
-recover :: RecSig -> Msg -> PubKey
+recover :: RecSig -> Msg -> Maybe PubKey
 recover (RecSig frg) (Msg fm) = unsafePerformIO $
     withForeignPtr frg $ \prg -> withForeignPtr fm $ \pm -> do
         fp <- mallocForeignPtr
         ret <- withForeignPtr fp $ \pp -> ecdsaRecover ctx pp prg pm
-        unless (isSuccess ret) $ error "could not recover public key"
-        return $ PubKey fp
+        if isSuccess ret then return $ Just $ PubKey fp else return Nothing
 
 instance Arbitrary Msg where
     arbitrary = gen_msg
