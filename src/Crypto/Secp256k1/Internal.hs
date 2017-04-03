@@ -223,7 +223,7 @@ fctx = unsafePerformIO $ do
 
 {-# INLINE withContext #-}
 withContext :: (Ptr Ctx -> IO a) -> a
-withContext f = unsafePerformIO (withForeignPtr fctx f)
+withContext f = unsafeDupablePerformIO (withForeignPtr fctx f)
 
 foreign import ccall
     "secp256k1.h secp256k1_context_create"
