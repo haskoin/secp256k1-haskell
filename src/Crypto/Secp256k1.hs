@@ -198,7 +198,7 @@ msg bs
 -- | Import 32-byte 'ByteString' as 'SecKey'.
 secKey :: ByteString -> Maybe SecKey
 secKey bs
-    | BS.length bs == 32 = unsafePerformIO $ do
+    | BS.length bs == 32 = withContext $ \ctx -> do
         fp <- mallocForeignPtr
         ret <- withForeignPtr fp $ \p -> do
             poke p (SecKey32 bs)
@@ -212,7 +212,7 @@ secKey bs
 -- indicates that the signature changed, 'False' indicates that it was already
 -- normal.
 normalizeSig :: Sig -> (Sig, Bool)
-normalizeSig (Sig fg) = unsafePerformIO $ do
+normalizeSig (Sig fg) = withContext $ \ctx -> do
     fg' <- mallocForeignPtr
     ret <- withForeignPtr fg $ \pg -> withForeignPtr fg' $ \pg' ->
         ecdsaSignatureNormalize ctx pg' pg
@@ -245,14 +245,14 @@ getTweak (Tweak ft) = getTweak32 $ unsafePerformIO $ withForeignPtr ft peek
 
 -- | Import DER-encoded public key.
 importPubKey :: ByteString -> Maybe PubKey
-importPubKey bs = unsafePerformIO $ useByteString bs $ \(b, l) -> do
+importPubKey bs =  withContext $ \ctx -> useByteString bs $ \(b, l) -> do
     fp <- mallocForeignPtr
     ret <- withForeignPtr fp $ \p -> ecPubKeyParse ctx p b l
     if isSuccess ret then return $ Just $ PubKey fp else return Nothing
 
 -- | Encode public key as DER. First argument 'True' for compressed output.
 exportPubKey :: Bool -> PubKey -> ByteString
-exportPubKey compress (PubKey pub) = unsafePerformIO $
+exportPubKey compress (PubKey pub) = withContext $ \ctx ->
     withForeignPtr pub $ \p -> alloca $ \l -> allocaBytes z $ \o -> do
         poke l (fromIntegral z)
         ret <- ecPubKeySerialize ctx o l p c
@@ -264,14 +264,14 @@ exportPubKey compress (PubKey pub) = unsafePerformIO $
     z = if compress then 33 else 65
 
 exportCompactSig :: Sig -> CompactSig
-exportCompactSig (Sig fg) = unsafePerformIO $
+exportCompactSig (Sig fg) = withContext $ \ctx ->
     withForeignPtr fg $ \pg -> alloca $ \pc -> do
         ret <- ecdsaSignatureSerializeCompact ctx pc pg
         unless (isSuccess ret) $ error "Could not obtain compact signature"
         peek pc
 
 importCompactSig :: CompactSig -> Maybe Sig
-importCompactSig c = unsafePerformIO $ alloca $ \pc -> do
+importCompactSig c = withContext $ \ctx -> alloca $ \pc -> do
     poke pc c
     fg <- mallocForeignPtr
     ret <- withForeignPtr fg $ \pg -> ecdsaSignatureParseCompact ctx pg pc
@@ -279,7 +279,7 @@ importCompactSig c = unsafePerformIO $ alloca $ \pc -> do
 
 -- | Import DER-encoded signature.
 importSig :: ByteString -> Maybe Sig
-importSig bs = unsafePerformIO $
+importSig bs = withContext $ \ctx ->
     useByteString bs $ \(b, l) -> do
         fg <- mallocForeignPtr
         ret <- withForeignPtr fg $ \g -> ecdsaSignatureParseDer ctx g b l
@@ -287,7 +287,7 @@ importSig bs = unsafePerformIO $
 
 -- | Relaxed DER parsing. Allows certain DER errors and violations.
 laxImportSig :: ByteString -> Maybe Sig
-laxImportSig bs = unsafePerformIO $
+laxImportSig bs = withContext $ \ctx ->
     useByteString bs $ \(b, l) -> do
         fg <- mallocForeignPtr
         ret <- withForeignPtr fg $ \g -> laxDerParse ctx g b l
@@ -295,7 +295,7 @@ laxImportSig bs = unsafePerformIO $
 
 -- | Encode signature as strict DER.
 exportSig :: Sig -> ByteString
-exportSig (Sig fg) = unsafePerformIO $
+exportSig (Sig fg) = withContext $ \ctx ->
     withForeignPtr fg $ \g -> alloca $ \l -> allocaBytes 72 $ \o -> do
         poke l 72
         ret <- ecdsaSignatureSerializeDer ctx o l g
@@ -305,12 +305,12 @@ exportSig (Sig fg) = unsafePerformIO $
 
 -- | Verify message signature. 'True' means that the signature is correct.
 verifySig :: PubKey -> Sig -> Msg -> Bool
-verifySig (PubKey fp) (Sig fg) (Msg fm) = unsafePerformIO $
+verifySig (PubKey fp) (Sig fg) (Msg fm) = withContext $ \ctx ->
     withForeignPtr fp $ \p -> withForeignPtr fg $ \g ->
         withForeignPtr fm $ \m -> isSuccess <$> ecdsaVerify ctx g m p
 
 signMsg :: SecKey -> Msg -> Sig
-signMsg (SecKey fk) (Msg fm) = unsafePerformIO $
+signMsg (SecKey fk) (Msg fm) = withContext $ \ctx ->
     withForeignPtr fk $ \k -> withForeignPtr fm $ \m -> do
         fg <- mallocForeignPtr
         ret <- withForeignPtr fg $ \g -> ecdsaSign ctx g m k nullFunPtr nullPtr
@@ -318,7 +318,7 @@ signMsg (SecKey fk) (Msg fm) = unsafePerformIO $
         return $ Sig fg
 
 derivePubKey :: SecKey -> PubKey
-derivePubKey (SecKey fk) = unsafePerformIO $ withForeignPtr fk $ \k -> do
+derivePubKey (SecKey fk) = withContext $ \ctx -> withForeignPtr fk $ \k -> do
     fp <- mallocForeignPtr
     ret <- withForeignPtr fp $ \p -> ecPubKeyCreate ctx p k
     unless (isSuccess ret) $ error "could not compute public key"
@@ -326,7 +326,7 @@ derivePubKey (SecKey fk) = unsafePerformIO $ withForeignPtr fk $ \k -> do
 
 -- | Add tweak to secret key.
 tweakAddSecKey :: SecKey -> Tweak -> Maybe SecKey
-tweakAddSecKey (SecKey fk) (Tweak ft) = unsafePerformIO $
+tweakAddSecKey (SecKey fk) (Tweak ft) = withContext $ \ctx ->
     withForeignPtr fk $ \k -> withForeignPtr ft $ \t -> do
         fk' <- mallocForeignPtr
         ret <- withForeignPtr fk' $ \k' ->  do
@@ -337,7 +337,7 @@ tweakAddSecKey (SecKey fk) (Tweak ft) = unsafePerformIO $
 
 -- | Multiply secret key by tweak.
 tweakMulSecKey :: SecKey -> Tweak -> Maybe SecKey
-tweakMulSecKey (SecKey fk) (Tweak ft) = unsafePerformIO $
+tweakMulSecKey (SecKey fk) (Tweak ft) = withContext $ \ctx ->
     withForeignPtr fk $ \k -> withForeignPtr ft $ \t -> do
         fk' <- mallocForeignPtr
         ret <- withForeignPtr fk' $ \k' ->  do
@@ -348,7 +348,7 @@ tweakMulSecKey (SecKey fk) (Tweak ft) = unsafePerformIO $
 
 -- | Add tweak to public key. Tweak is multiplied first by G to obtain a point.
 tweakAddPubKey :: PubKey -> Tweak -> Maybe PubKey
-tweakAddPubKey (PubKey fp) (Tweak ft) = unsafePerformIO $
+tweakAddPubKey (PubKey fp) (Tweak ft) = withContext $ \ctx ->
     withForeignPtr fp $ \p -> withForeignPtr ft $ \t -> do
         fp' <- mallocForeignPtr
         ret <- withForeignPtr fp' $ \p' ->  do
@@ -360,7 +360,7 @@ tweakAddPubKey (PubKey fp) (Tweak ft) = unsafePerformIO $
 -- | Multiply public key by tweak. Tweak is multiplied first by G to obtain a
 -- point.
 tweakMulPubKey :: PubKey -> Tweak -> Maybe PubKey
-tweakMulPubKey (PubKey fp) (Tweak ft) = unsafePerformIO $
+tweakMulPubKey (PubKey fp) (Tweak ft) = withContext $ \ctx ->
     withForeignPtr fp $ \p -> withForeignPtr ft $ \t -> do
         fp' <- mallocForeignPtr
         ret <- withForeignPtr fp' $ \p' ->  do
@@ -371,7 +371,7 @@ tweakMulPubKey (PubKey fp) (Tweak ft) = unsafePerformIO $
 
 -- | Add multiple public keys together.
 combinePubKeys :: [PubKey] -> Maybe PubKey
-combinePubKeys pubs = unsafePerformIO $ pointers [] pubs $ \ps ->
+combinePubKeys pubs = withContext $ \ctx -> pointers [] pubs $ \ps ->
     allocaArray (length ps) $ \a -> do
         pokeArray a ps
         fp <- mallocForeignPtr
@@ -390,7 +390,7 @@ importCompactRecSig :: CompactRecSig -> Maybe RecSig
 importCompactRecSig cr =
   if getCompactRecSigV cr `notElem` [0,1,2,3]
   then Nothing
-  else unsafePerformIO $ alloca $ \pc -> do
+  else withContext $ \ctx -> alloca $ \pc -> do
     let
       c = CompactSig (getCompactRecSigR cr) (getCompactRecSigS cr)
       recid = fromIntegral $ getCompactRecSigV cr
@@ -402,7 +402,7 @@ importCompactRecSig cr =
 
 -- | Serialize an ECDSA signature in compact format (64 bytes + recovery id).
 exportCompactRecSig :: RecSig -> CompactRecSig
-exportCompactRecSig (RecSig fg) = unsafePerformIO $
+exportCompactRecSig (RecSig fg) = withContext $ \ctx ->
     withForeignPtr fg $ \pg -> alloca $ \pc -> alloca $ \pr -> do
         ret <- ecdsaRecoverableSignatureSerializeCompact ctx pc pr pg
         unless (isSuccess ret) $ error "Could not obtain compact signature"
@@ -412,7 +412,7 @@ exportCompactRecSig (RecSig fg) = unsafePerformIO $
 
 -- | Convert a recoverable signature into a normal signature.
 convertRecSig :: RecSig -> Sig
-convertRecSig (RecSig frg) = unsafePerformIO $
+convertRecSig (RecSig frg) = withContext $ \ctx ->
     withForeignPtr frg $ \prg -> do
         fg <- mallocForeignPtr
         ret <- withForeignPtr fg $ \pg ->
@@ -423,7 +423,7 @@ convertRecSig (RecSig frg) = unsafePerformIO $
 
 -- | Create a recoverable ECDSA signature.
 signRecMsg :: SecKey -> Msg -> RecSig
-signRecMsg (SecKey fk) (Msg fm) = unsafePerformIO $
+signRecMsg (SecKey fk) (Msg fm) = withContext $ \ctx ->
     withForeignPtr fk $ \k -> withForeignPtr fm $ \m -> do
         fg <- mallocForeignPtr
         ret <- withForeignPtr fg $ \g ->
@@ -433,7 +433,7 @@ signRecMsg (SecKey fk) (Msg fm) = unsafePerformIO $
 
 -- | Recover an ECDSA public key from a signature.
 recover :: RecSig -> Msg -> Maybe PubKey
-recover (RecSig frg) (Msg fm) = unsafePerformIO $
+recover (RecSig frg) (Msg fm) = withContext $ \ctx ->
     withForeignPtr frg $ \prg -> withForeignPtr fm $ \pm -> do
         fp <- mallocForeignPtr
         ret <- withForeignPtr fp $ \pp -> ecdsaRecover ctx pp prg pm
