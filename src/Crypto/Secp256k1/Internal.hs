@@ -212,14 +212,18 @@ isSuccess (Ret 0) = False
 isSuccess (Ret 1) = True
 isSuccess _ = undefined
 
-{-# NOINLINE ctx #-}
-ctx :: Ptr Ctx
-ctx = unsafePerformIO $ do
+{-# NOINLINE fctx #-}
+fctx :: ForeignPtr Ctx
+fctx = unsafePerformIO $ do
     x <- contextCreate signVerify
     e <- getEntropy 32
     ret <- alloca $ \s -> poke s (Seed32 e) >> contextRandomize x s
     unless (isSuccess ret) $ error "failed to randomize context"
-    return x
+    newForeignPtr contextDestroy x
+
+{-# INLINE withContext #-}
+withContext :: (Ptr Ctx -> IO a) -> a
+withContext f = unsafeDupablePerformIO (withForeignPtr fctx f)
 
 foreign import ccall
     "secp256k1.h secp256k1_context_create"
