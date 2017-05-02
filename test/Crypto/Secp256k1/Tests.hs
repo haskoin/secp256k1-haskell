@@ -11,6 +11,7 @@ import           Test.Framework                       (Test, testGroup)
 import           Test.Framework.Providers.HUnit       (testCase)
 import           Test.Framework.Providers.QuickCheck2 (testProperty)
 import           Test.HUnit                           (Assertion, assertEqual)
+import           Test.QuickCheck                      (Property, (==>))
 
 tests :: [Test]
 tests =
@@ -110,9 +111,13 @@ recoverTest (fm, fk) = recover fg fm == Just fp where
     fp = derivePubKey fk
     fg = signRecMsg fk fm
 
-badRecoverTest :: (Msg, SecKey) -> Bool
-badRecoverTest (fm, fk) = recover fg fm == Nothing where
-    fg = signRecMsg fk fm
+badRecoverTest :: (Msg, SecKey, Msg) -> Property
+badRecoverTest (fm, fk, fm') =
+  fm' /= fm ==> fp' /= Nothing ==> fp' /= Just fp
+  where
+    fg  = signRecMsg fk fm
+    fp  = derivePubKey fk
+    fp' = recover fg fm'
 
 badSignatureTest :: (Msg, SecKey, PubKey) -> Bool
 badSignatureTest (fm, fk, fp) = not $ verifySig fp fg fm where
