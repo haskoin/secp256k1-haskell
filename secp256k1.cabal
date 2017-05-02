@@ -1,13 +1,13 @@
 name:                secp256k1
-version:             0.4.6
+version:             0.4.7
 synopsis:            Bindings for secp256k1 library from Bitcoin Core
 description:         Please see README.md
 homepage:            http://github.com/haskoin/secp256k1-haskell#readme
 license:             PublicDomain
 license-file:        UNLICENSE
-author:              Jean-Pierre Rupp <root@haskoin.com>
-maintainer:          Jean-Pierre Rupp <root@haskoin.com>
-copyright:           (c) 2016 Jean-Pierre Rupp
+author:              Jean-Pierre Rupp
+maintainer:          xenog@protonmail.com
+copyright:           (c) 2017 Jean-Pierre Rupp
 category:            Crypto
 build-type:          Custom
 extra-source-files:
@@ -150,3 +150,7 @@ test-suite secp256k1-test
 source-repository head
     type:     git
     location: https://github.com/haskoin/secp256k1-haskell.git
+
+custom-setup
+    setup-depends:       base >= 4.8 && < 5
+                       , Cabal >= 1.24 && < 1.25
