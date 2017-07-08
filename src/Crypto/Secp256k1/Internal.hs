@@ -1,3 +1,4 @@
+{-# LANGUAGE RecordWildCards #-}
 {-|
 Module      : Crypto.Secp256k1.Internal
 License     : MIT
@@ -11,12 +12,12 @@ exposed for hacking and experimentation.
 module Crypto.Secp256k1.Internal where
 
 import           Control.Monad
-import           Data.Binary          (Binary)
-import qualified Data.Binary          as Binary
-import           Data.ByteString      (ByteString, packCStringLen,
-                                       useAsCStringLen)
-import qualified Data.ByteString.Lazy as Lazy
-import           Data.LargeWord       (LargeKey (LargeKey), Word256)
+import           Data.ByteString       (ByteString)
+import qualified Data.ByteString       as BS
+import           Data.ByteString.Short (ShortByteString, fromShort, toShort)
+import           Data.Serialize        (Serialize (..))
+import qualified Data.Serialize.Get    as Get
+import qualified Data.Serialize.Put    as Put
 import           Foreign
 import           Foreign.C
 import           System.Entropy
@@ -24,46 +25,46 @@ import           System.IO.Unsafe
 
 data Ctx = Ctx
 
-newtype PubKey64 = PubKey64 { getPubKey64 :: ByteString }
+newtype PubKey64 = PubKey64 { getPubKey64 :: ShortByteString }
     deriving (Read, Show, Eq, Ord)
 
-newtype Msg32 = Msg32 { getMsg32 :: ByteString }
+newtype Msg32 = Msg32 { getMsg32 :: ShortByteString }
     deriving (Read, Show, Eq, Ord)
 
-newtype Sig64 = Sig64 { getSig64 :: ByteString }
+newtype Sig64 = Sig64 { getSig64 :: ShortByteString }
     deriving (Read, Show, Eq, Ord)
 
 data CompactSig =
     CompactSig
-        { getCompactSigR :: Word256
-        , getCompactSigS :: Word256
+        { getCompactSigR :: !ShortByteString
+        , getCompactSigS :: !ShortByteString
         }
     deriving (Show, Eq, Ord)
 
-newtype RecSig65 = RecSig65 { getRecSig65 :: ByteString }
+newtype RecSig65 = RecSig65 { getRecSig65 :: ShortByteString }
     deriving (Read, Show, Eq, Ord)
 
 data CompactRecSig =
     CompactRecSig
-        { getCompactRecSigR :: Word256
-        , getCompactRecSigS :: Word256
-        , getCompactRecSigV :: Word8
+        { getCompactRecSigR :: !ShortByteString
+        , getCompactRecSigS :: !ShortByteString
+        , getCompactRecSigV :: !Word8
         }
     deriving (Show, Eq, Ord)
 
-newtype Seed32 = Seed32 { getSeed32 :: ByteString }
+newtype Seed32 = Seed32 { getSeed32 :: ShortByteString }
     deriving (Read, Show, Eq, Ord)
 
-newtype SecKey32 = SecKey32 { getSecKey32 :: ByteString }
+newtype SecKey32 = SecKey32 { getSecKey32 :: ShortByteString }
     deriving (Read, Show, Eq, Ord)
 
-newtype Tweak32 = Tweak32 { getTweak32 :: ByteString }
+newtype Tweak32 = Tweak32 { getTweak32 :: ShortByteString }
     deriving (Read, Show, Eq, Ord)
 
-newtype Nonce32 = Nonce32 { getNonce32 :: ByteString }
+newtype Nonce32 = Nonce32 { getNonce32 :: ShortByteString }
     deriving (Read, Show, Eq, Ord)
 
-newtype Algo16 = Algo16 { getAlgo16 :: ByteString }
+newtype Algo16 = Algo16 { getAlgo16 :: ShortByteString }
     deriving (Read, Show, Eq, Ord)
 
 newtype CtxFlags = CtxFlags { getCtxFlags :: CUInt }
@@ -102,122 +103,144 @@ uncompressed = SerFlags 0x0002
 
 useByteString :: ByteString -> ((Ptr CUChar, CSize) -> IO a) -> IO a
 useByteString bs f =
-    useAsCStringLen bs $ \(b, l) -> f (castPtr b, fromIntegral l)
+    BS.useAsCStringLen bs $ \(b, l) -> f (castPtr b, fromIntegral l)
 
 packByteString :: (Ptr CUChar, CSize) -> IO ByteString
-packByteString (b, l) = packCStringLen (castPtr b, fromIntegral l)
+packByteString (b, l) = BS.packCStringLen (castPtr b, fromIntegral l)
 
 instance Storable PubKey64 where
     sizeOf _ = 64
     alignment _ = 1
-    peek p = PubKey64 <$> packByteString (castPtr p, 64)
-    poke p (PubKey64 k) = useByteString k $
+    peek p = PubKey64 . toShort <$> packByteString (castPtr p, 64)
+    poke p (PubKey64 k) = useByteString (fromShort k) $
         \(b, _) -> copyArray (castPtr p) b 64
 
 instance Storable Sig64 where
     sizeOf _ = 64
     alignment _ = 1
-    peek p = Sig64 <$> packByteString (castPtr p, 64)
-    poke p (Sig64 k) = useByteString k $
+    peek p = Sig64 . toShort <$> packByteString (castPtr p, 64)
+    poke p (Sig64 k) = useByteString (fromShort k) $
         \(b, _) -> copyArray (castPtr p) b 64
 
 instance Storable CompactSig where
     sizeOf _ = 64
     alignment _ = 1
     peek p = do
-        bs <- packCStringLen (castPtr p, 64)
-        return (Binary.decode (Lazy.fromStrict bs))
-    poke p cs =
+        bs <- BS.packCStringLen (castPtr p, 64)
+        let (s, r) = BS.splitAt 32 bs
+        guard $ BS.length s == 32
+        guard $ BS.length r == 32
+        return CompactSig { getCompactSigR = toShort r
+                          , getCompactSigS = toShort s
+                          }
+    poke p CompactSig{..} =
         useByteString bs $ \(b, _) -> copyArray (castPtr p) b 64
       where
-        bs = Lazy.toStrict (Binary.encode cs)
+        bs = fromShort getCompactSigS `BS.append` fromShort getCompactSigR
 
-instance Binary CompactSig where
+instance Serialize CompactSig where
     get = do
-        LargeKey s r <- Binary.get
-        return $ CompactSig r s
-    put (CompactSig r s) = Binary.put (LargeKey s r)
+        s <- Get.getByteString 32
+        r <- Get.getByteString 32
+        return CompactSig { getCompactSigR = toShort r
+                          , getCompactSigS = toShort s
+                          }
+    put (CompactSig r s) = do
+        Put.putShortByteString s
+        Put.putShortByteString r
 
 instance Storable RecSig65 where
     sizeOf _ = 65
     alignment _ = 1
-    peek p = RecSig65 <$> packByteString (castPtr p, 65)
-    poke p (RecSig65 k) = useByteString k $
+    peek p = RecSig65 . toShort <$> packByteString (castPtr p, 65)
+    poke p (RecSig65 k) = useByteString (fromShort k) $
         \(b, _) -> copyArray (castPtr p) b 65
 
 instance Storable CompactRecSig where
     sizeOf _ = 65
     alignment _ = 1
     peek p = do
-        bs <- packCStringLen (castPtr p, 65)
-        return (Binary.decode (Lazy.fromStrict bs))
-    poke p cs =
+        bs <- BS.packCStringLen (castPtr p, 65)
+        let (s, r) = BS.splitAt 32 $ BS.take 64 bs
+            v = BS.last bs
+        return CompactRecSig { getCompactRecSigR = toShort r
+                             , getCompactRecSigS = toShort s
+                             , getCompactRecSigV = v
+                             }
+    poke p CompactRecSig{..} =
         useByteString bs $ \(b, _) -> copyArray (castPtr p) b 65
       where
-        bs = Lazy.toStrict (Binary.encode cs)
+        bs = fromShort getCompactRecSigS `BS.append`
+             fromShort getCompactRecSigR `BS.snoc`
+             getCompactRecSigV
 
-instance Binary CompactRecSig where
+instance Serialize CompactRecSig where
     get = do
-        LargeKey s r <- Binary.get
-        v <- Binary.getWord8
-        return $ CompactRecSig r s v
+        s <- Get.getByteString 32
+        r <- Get.getByteString 32
+        v <- Get.getWord8
+        return CompactRecSig { getCompactRecSigR = toShort r
+                             , getCompactRecSigS = toShort s
+                             , getCompactRecSigV = v
+                             }
     put (CompactRecSig r s v) = do
-        Binary.put (LargeKey s r)
-        Binary.putWord8 v
+        Put.putShortByteString s
+        Put.putShortByteString r
+        Put.putWord8 v
 
 instance Storable Msg32 where
     sizeOf _ = 32
     alignment _ = 1
-    peek p = Msg32 <$> packByteString (castPtr p, 32)
-    poke p (Msg32 k) = useByteString k $
+    peek p = Msg32 . toShort <$> packByteString (castPtr p, 32)
+    poke p (Msg32 k) = useByteString (fromShort k) $
         \(b, _) -> copyArray (castPtr p) b 32
 
 instance Storable Seed32 where
     sizeOf _ = 32
     alignment _ = 1
-    peek p = Seed32 <$> packByteString (castPtr p, 32)
-    poke p (Seed32 k) = useByteString k $
+    peek p = Seed32 . toShort <$> packByteString (castPtr p, 32)
+    poke p (Seed32 k) = useByteString (fromShort k) $
         \(b, _) -> copyArray (castPtr p) b 32
 
 instance Storable SecKey32 where
     sizeOf _ = 32
     alignment _ = 1
-    peek p = SecKey32 <$> packByteString (castPtr p, 32)
-    poke p (SecKey32 k) = useByteString k $
+    peek p = SecKey32 . toShort <$> packByteString (castPtr p, 32)
+    poke p (SecKey32 k) = useByteString (fromShort k) $
         \(b, _) -> copyArray (castPtr p) b 32
 
 instance Storable Tweak32 where
     sizeOf _ = 32
     alignment _ = 1
-    peek p = Tweak32 <$> packByteString (castPtr p, 32)
-    poke p (Tweak32 k) = useByteString k $
+    peek p = Tweak32 . toShort <$> packByteString (castPtr p, 32)
+    poke p (Tweak32 k) = useByteString (fromShort k) $
         \(b, _) -> copyArray (castPtr p) b 32
 
 instance Storable Nonce32 where
     sizeOf _ = 32
     alignment _ = 1
-    peek p = Nonce32 <$> packByteString (castPtr p, 32)
-    poke p (Nonce32 k) = useByteString k $
+    peek p = Nonce32 . toShort <$> packByteString (castPtr p, 32)
+    poke p (Nonce32 k) = useByteString (fromShort k) $
         \(b, _) -> copyArray (castPtr p) b 32
 
 instance Storable Algo16 where
     sizeOf _ = 16
     alignment _ = 1
-    peek p = Algo16 <$> packByteString (castPtr p, 16)
-    poke p (Algo16 k) = useByteString k $
+    peek p = Algo16 . toShort <$> packByteString (castPtr p, 16)
+    poke p (Algo16 k) = useByteString (fromShort k) $
         \(b, _) -> copyArray (castPtr p) b 16
 
 isSuccess :: Ret -> Bool
 isSuccess (Ret 0) = False
 isSuccess (Ret 1) = True
-isSuccess _ = undefined
+isSuccess _       = undefined
 
 {-# NOINLINE fctx #-}
 fctx :: ForeignPtr Ctx
 fctx = unsafePerformIO $ do
     x <- contextCreate signVerify
     e <- getEntropy 32
-    ret <- alloca $ \s -> poke s (Seed32 e) >> contextRandomize x s
+    ret <- alloca $ \s -> poke s (Seed32 (toShort e)) >> contextRandomize x s
     unless (isSuccess ret) $ error "failed to randomize context"
     newForeignPtr contextDestroy x
 

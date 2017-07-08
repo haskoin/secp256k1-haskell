@@ -61,10 +61,11 @@ module Crypto.Secp256k1
 
 import           Control.Monad
 import           Crypto.Secp256k1.Internal
-import           Data.Binary
+import           Data.Serialize
 import           Data.ByteString           (ByteString)
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Base16    as B16
+import           Data.ByteString.Short     (fromShort, toShort)
 import           Data.Maybe
 import           Data.String
 import           Data.String.Conversions
@@ -126,19 +127,26 @@ instance Show Sig where
     showsPrec d s = showParen (d > 10) $
         showString "Sig " . shows (B16.encode $ exportSig s)
 
+recSigFromString :: String -> Maybe RecSig
+recSigFromString str = do
+    bs <- decodeHex str
+    rs <- either (const Nothing) Just $ decode bs
+    importCompactRecSig rs
+
 instance Read RecSig where
     readPrec = parens $ do
         Ident "RecSig" <- lexP
         String str <- lexP
-        maybe pfail return $ importCompactRecSig . decode . convertString =<< decodeHex str
+        maybe pfail return $ recSigFromString str
 
 instance IsString RecSig where
-    fromString = fromMaybe e . (importCompactRecSig . decode . convertString <=< decodeHex) where
+    fromString = fromMaybe e . recSigFromString
+      where
         e = error "Could not decode signature from hex string"
 
 instance Show RecSig where
     showsPrec d s = showParen (d > 10) $
-        showString "RecSig " . shows (B16.encode . convertString . encode $ exportCompactRecSig s)
+        showString "RecSig " . shows (B16.encode . encode $ exportCompactRecSig s)
 
 instance Read SecKey where
     readPrec = parens $ do
@@ -191,7 +199,7 @@ msg :: ByteString -> Maybe Msg
 msg bs
     | BS.length bs == 32 = unsafePerformIO $ do
         fp <- mallocForeignPtr
-        withForeignPtr fp $ flip poke (Msg32 bs)
+        withForeignPtr fp $ flip poke (Msg32 (toShort bs))
         return $ Just $ Msg fp
     | otherwise = Nothing
 
@@ -201,7 +209,7 @@ secKey bs
     | BS.length bs == 32 = withContext $ \ctx -> do
         fp <- mallocForeignPtr
         ret <- withForeignPtr fp $ \p -> do
-            poke p (SecKey32 bs)
+            poke p (SecKey32 (toShort bs))
             ecSecKeyVerify ctx p
         if isSuccess ret
             then return $ Just $ SecKey fp
@@ -223,25 +231,29 @@ tweak :: ByteString -> Maybe Tweak
 tweak bs
     | BS.length bs == 32 = unsafePerformIO $ do
         fp <- mallocForeignPtr
-        withForeignPtr fp $ flip poke (Tweak32 bs)
+        withForeignPtr fp $ flip poke (Tweak32 (toShort bs))
         return $ Just $ Tweak fp
     | otherwise = Nothing
 
 -- | Get 32-byte secret key.
 getSecKey :: SecKey -> ByteString
-getSecKey (SecKey fk) = getSecKey32 $ unsafePerformIO $ withForeignPtr fk peek
+getSecKey (SecKey fk) =
+    fromShort $ getSecKey32 $ unsafePerformIO $ withForeignPtr fk peek
 
 -- Get 64-byte public key.
 getPubKey :: PubKey -> ByteString
-getPubKey (PubKey fp) = getPubKey64 $ unsafePerformIO $ withForeignPtr fp peek
+getPubKey (PubKey fp) =
+    fromShort $ getPubKey64 $ unsafePerformIO $ withForeignPtr fp peek
 
 -- | Get 32-byte message.
 getMsg :: Msg -> ByteString
-getMsg (Msg fm) = getMsg32 $ unsafePerformIO $ withForeignPtr fm peek
+getMsg (Msg fm) =
+    fromShort $ getMsg32 $ unsafePerformIO $ withForeignPtr fm peek
 
 -- | Get 32-byte tweak.
 getTweak :: Tweak -> ByteString
-getTweak (Tweak ft) = getTweak32 $ unsafePerformIO $ withForeignPtr ft peek
+getTweak (Tweak ft) =
+    fromShort $ getTweak32 $ unsafePerformIO $ withForeignPtr ft peek
 
 -- | Import DER-encoded public key.
 importPubKey :: ByteString -> Maybe PubKey

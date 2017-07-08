@@ -7,6 +7,7 @@ import           Crypto.Secp256k1.Internal
 import           Data.ByteString                (ByteString, packCStringLen,
                                                  useAsCStringLen)
 import qualified Data.ByteString.Base16         as B16
+import           Data.ByteString.Short          (toShort)
 import           Foreign
 import           System.Entropy
 import           Test.Framework                 (Test, testGroup)
@@ -50,7 +51,10 @@ tests =
     ]
 
 withEntropy :: (Ptr Seed32 -> IO a) -> IO a
-withEntropy f = getEntropy 32 >>= \e -> alloca $ \s -> poke s (Seed32 e) >> f s
+withEntropy f =
+    getEntropy 32 >>= \e ->
+    alloca $ \s ->
+    poke s (Seed32 (toShort e)) >> f s
 
 createContextTest :: Assertion
 createContextTest = do
@@ -150,8 +154,8 @@ signatureStorableTest = do
     assertEqual "signatures match" cpt sig
   where
     cpt = CompactSig
-        0xf502bfa07af43e7ef265618b0d929a7619ee01d6150e37eb6eaaf2c8bd37fb22
-        0x6f0415ab0e9a977afd78b2c26ef39b3952096d319fd4b101c768ad6c132e3045
+        (toShort $ fst $ B16.decode "f502bfa07af43e7ef265618b0d929a7619ee01d6150e37eb6eaaf2c8bd37fb22")
+        (toShort $ fst $ B16.decode "6f0415ab0e9a977afd78b2c26ef39b3952096d319fd4b101c768ad6c132e3045")
 
 ecdsaSignatureParseDerTest :: Assertion
 ecdsaSignatureParseDerTest = do
@@ -227,7 +231,7 @@ ecdsaVerifyTest = do
     pub = fst $ B16.decode
         "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd447051221\
         \3d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
-    msg = Msg32 $ fst $ B16.decode
+    msg = Msg32 $ toShort $ fst $ B16.decode
         "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
 
 signCtx :: IO (Ptr Ctx)
@@ -256,9 +260,9 @@ ecdsaSignTest = do
     assertBool "successful signing" $ isSuccess ret
     assertEqual "signature matches" sig der
   where
-    msg = Msg32 $ fst $ B16.decode
+    msg = Msg32 $ toShort $ fst $ B16.decode
         "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
-    key = SecKey32 $ fst $ B16.decode
+    key = SecKey32 $ toShort $ fst $ B16.decode
         "f65255094d7773ed8dd417badc9fc045c1f80fdc5b2d25172b031ce6933e039a"
     der = fst $ B16.decode
         "3045022100f502bfa07af43e7ef265618b0d929a7619ee01d6150e37eb6eaaf2c8bd37\
@@ -273,7 +277,7 @@ ecSecKeyVerifyTest = do
         ecSecKeyVerify x k
     assertBool "valid secret key" $ isSuccess ret
   where
-    key = SecKey32 $ fst $ B16.decode
+    key = SecKey32 $ toShort $ fst $ B16.decode
         "f65255094d7773ed8dd417badc9fc045c1f80fdc5b2d25172b031ce6933e039a"
 
 ecPubkeyCreateTest :: Assertion
@@ -293,7 +297,7 @@ ecPubkeyCreateTest = do
     assertBool "successful pubkey creation" $ isSuccess ret
     assertEqual "public key matches" pub pk
   where
-    key = SecKey32 $ fst $ B16.decode
+    key = SecKey32 $ toShort $ fst $ B16.decode
         "f65255094d7773ed8dd417badc9fc045c1f80fdc5b2d25172b031ce6933e039a"
     pub = fst $ B16.decode
         "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd447051221\
@@ -312,11 +316,11 @@ ecSecKeyTweakAddTest = do
     assertBool "successful secret key tweak" $ isSuccess ret
     assertEqual "tweaked keys match" expected tweaked
   where
-    key = SecKey32 $ fst $ B16.decode
+    key = SecKey32 $ toShort $ fst $ B16.decode
         "f65255094d7773ed8dd417badc9fc045c1f80fdc5b2d25172b031ce6933e039a"
-    tweak = Tweak32 $ fst $ B16.decode
+    tweak = Tweak32 $ toShort $ fst $ B16.decode
         "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
-    expected = SecKey32 $ fst $ B16.decode
+    expected = SecKey32 $ toShort $ fst $ B16.decode
         "ec1e3ce1cefa18a671d51125e2b249688d934b0e28f5d1665384d9b02f929059"
 
 ecSecKeyTweakMulTest :: Assertion
@@ -334,11 +338,11 @@ ecSecKeyTweakMulTest = do
     assertBool "successful secret key tweak" $ isSuccess ret
     assertEqual "tweaked keys match" expected tweaked
   where
-    key = SecKey32 $ fst $ B16.decode
+    key = SecKey32 $ toShort $ fst $ B16.decode
         "f65255094d7773ed8dd417badc9fc045c1f80fdc5b2d25172b031ce6933e039a"
-    tweak = Tweak32 $ fst $ B16.decode
+    tweak = Tweak32 $ toShort $ fst $ B16.decode
         "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
-    expected = SecKey32 $ fst $ B16.decode
+    expected = SecKey32 $ toShort $ fst $ B16.decode
         "a96f5962493acb179f60a86a9785fc7a30e0c39b64c09d24fe064d9aef15e4c0"
 
 serializeKey :: Ptr Ctx -> Ptr PubKey64 -> IO ByteString
@@ -372,7 +376,7 @@ ecPubKeyTweakAddTest = do
     pub = fst $ B16.decode
         "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd447051221\
         \3d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
-    tweak = Tweak32 $ fst $ B16.decode
+    tweak = Tweak32 $ toShort $ fst $ B16.decode
         "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
     expected = fst $ B16.decode
         "04441c3982b97576646e0df0c96736063df6b42f2ee566d13b9f6424302d1379e518fd\
@@ -395,7 +399,7 @@ ecPubKeyTweakMulTest = do
     pub = fst $ B16.decode
         "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd447051221\
         \3d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
-    tweak = Tweak32 $ fst $ B16.decode
+    tweak = Tweak32 $ toShort $ fst $ B16.decode
         "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
     expected = fst $ B16.decode
         "04f379dc99cdf5c83e433defa267fbb3377d61d6b779c06a0e4ce29ae3ff5353b12ae4\

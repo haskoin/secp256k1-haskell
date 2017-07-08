@@ -1,7 +1,7 @@
 module Crypto.Secp256k1.Tests (tests) where
 
 import           Crypto.Secp256k1
-import           Data.Binary
+import           Data.Serialize
 import qualified Data.ByteString.Base16               as B16
 import qualified Data.ByteString.Char8                as B8
 import           Data.Maybe                           (fromMaybe)
@@ -65,7 +65,7 @@ isStringSig (k, m) = g == fromString (cs hex) where
 isStringRecSig :: (SecKey, Msg) -> Bool
 isStringRecSig (k, m) = g == fromString (cs hex) where
     g = signRecMsg k m
-    hex = B16.encode . cs . encode $ exportCompactRecSig g
+    hex = B16.encode . encode $ exportCompactRecSig g
 
 isStringMsg :: Msg -> Bool
 isStringMsg m = m == fromString (cs m') where
