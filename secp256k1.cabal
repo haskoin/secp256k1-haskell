@@ -1,5 +1,5 @@
 name:                secp256k1
-version:             0.5.1
+version:             0.5.2
 synopsis:            Bindings for secp256k1 library from Bitcoin Core
 description:         Please see README.md
 homepage:            http://github.com/haskoin/secp256k1-haskell#readme
@@ -92,6 +92,9 @@ extra-source-files:
     secp256k1/sage/group_prover.sage
     secp256k1/sage/weierstrass_prover.sage
     secp256k1/sage/secp256k1.sage
+    secp256k1/build-aux/m4/ax_jni_include_dir.m4
+    secp256k1/build-aux/m4/ax_prog_cc_for_build.m4
+    secp256k1/build-aux/m4/bitcoin_secp.m4
     README.md
 cabal-version:       >=1.10
 
