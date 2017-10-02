@@ -1,5 +1,5 @@
 name:                secp256k1
-version:             0.5.0
+version:             0.5.1
 synopsis:            Bindings for secp256k1 library from Bitcoin Core
 description:         Please see README.md
 homepage:            http://github.com/haskoin/secp256k1-haskell#readme
@@ -142,5 +142,5 @@ source-repository head
 
 custom-setup
     setup-depends:       base >= 4.8 && < 5
-                       , Cabal >= 1.24 && < 1.25
+                       , Cabal >= 1.10
 
