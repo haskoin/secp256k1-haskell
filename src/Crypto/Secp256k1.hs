@@ -263,7 +263,7 @@ importPubKey bs =  withContext $ \ctx -> useByteString bs $ \(b, l) -> do
     ret <- withForeignPtr fp $ \p -> ecPubKeyParse ctx p b l
     if isSuccess ret then return $ Just $ PubKey fp else return Nothing
 
--- | Encode secret key as BER.  First argument 'True' for compressed output.
+-- | Encode secret key as DER.  First argument 'True' for compressed output.
 exportSecKey :: Bool -> SecKey -> ByteString
 exportSecKey compress (SecKey fk) = withContext $ \ctx ->
     withForeignPtr fk $ \k -> alloca $ \l -> allocaBytes 279 $ \o -> do

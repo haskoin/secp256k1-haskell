@@ -482,10 +482,10 @@ foreign import ccall
     -> IO Ret
 
 foreign import ccall
-    "secp256k1.h secp256k1_ec_privkey_export"
+    "lax_der_privatekey_parsing.h ec_privkey_export_der"
     ecSecKeyExport
     :: Ptr Ctx
-    -> Ptr CUChar -- ^ array to store BER-encoded key (allocate 279 bytes)
+    -> Ptr CUChar -- ^ array to store DER-encoded key (allocate 279 bytes)
     -> Ptr CSize -- ^ size of previous array, will be updated
     -> Ptr SecKey32
     -> SerFlags
