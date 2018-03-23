@@ -114,7 +114,7 @@ library
     ghc-options:         -Wall
     cc-options:          -DHAVE_CONFIG_H
     c-sources:           secp256k1/src/secp256k1.c, secp256k1/contrib/lax_der_parsing.c
-    include-dirs:        secp256k1, secp256k1/include
+    include-dirs:        secp256k1, secp256k1/contrib, secp256k1/include
 
 test-suite secp256k1-test
     type:                exitcode-stdio-1.0
