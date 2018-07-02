@@ -136,7 +136,7 @@ instance Storable CompactSig where
     poke p CompactSig{..} =
         useByteString bs $ \(b, _) -> copyArray (castPtr p) b 64
       where
-        bs = fromShort getCompactSigS `BS.append` fromShort getCompactSigR
+        bs = fromShort getCompactSigR `BS.append` fromShort getCompactSigS
 
 instance Serialize CompactSig where
     get = do
