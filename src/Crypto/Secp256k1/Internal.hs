@@ -127,7 +127,7 @@ instance Storable CompactSig where
     alignment _ = 1
     peek p = do
         bs <- BS.packCStringLen (castPtr p, 64)
-        let (s, r) = BS.splitAt 32 bs
+        let (r, s) = BS.splitAt 32 bs
         guard $ BS.length s == 32
         guard $ BS.length r == 32
         return CompactSig { getCompactSigR = toShort r
