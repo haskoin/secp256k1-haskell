@@ -20,6 +20,7 @@ module Crypto.Secp256k1
     , secKey
     , getSecKey
     , derivePubKey
+    , exportSecKey
 
     -- * Public Keys
     , PubKey
@@ -261,6 +262,18 @@ importPubKey bs =  withContext $ \ctx -> useByteString bs $ \(b, l) -> do
     fp <- mallocForeignPtr
     ret <- withForeignPtr fp $ \p -> ecPubKeyParse ctx p b l
     if isSuccess ret then return $ Just $ PubKey fp else return Nothing
+
+-- | Encode secret key as DER.  First argument 'True' for compressed output.
+exportSecKey :: Bool -> SecKey -> ByteString
+exportSecKey compress (SecKey fk) = withContext $ \ctx ->
+    withForeignPtr fk $ \k -> alloca $ \l -> allocaBytes 279 $ \o -> do
+        poke l 279
+        ret <- ecSecKeyExport ctx o l k c
+        unless (isSuccess ret) $ error "could not export secret key"
+        n <- peek l
+        packByteString (o, n)
+  where
+    c = if compress then compressed else uncompressed
 
 -- | Encode public key as DER. First argument 'True' for compressed output.
 exportPubKey :: Bool -> PubKey -> ByteString
