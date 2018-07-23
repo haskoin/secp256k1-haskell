@@ -127,7 +127,7 @@ instance Storable CompactSig where
     alignment _ = 1
     peek p = do
         bs <- BS.packCStringLen (castPtr p, 64)
-        let (s, r) = BS.splitAt 32 bs
+        let (r, s) = BS.splitAt 32 bs
         guard $ BS.length s == 32
         guard $ BS.length r == 32
         return CompactSig { getCompactSigR = toShort r
@@ -136,7 +136,7 @@ instance Storable CompactSig where
     poke p CompactSig{..} =
         useByteString bs $ \(b, _) -> copyArray (castPtr p) b 64
       where
-        bs = fromShort getCompactSigS `BS.append` fromShort getCompactSigR
+        bs = fromShort getCompactSigR `BS.append` fromShort getCompactSigS
 
 instance Serialize CompactSig where
     get = do
@@ -161,7 +161,7 @@ instance Storable CompactRecSig where
     alignment _ = 1
     peek p = do
         bs <- BS.packCStringLen (castPtr p, 65)
-        let (s, r) = BS.splitAt 32 $ BS.take 64 bs
+        let (r, s) = BS.splitAt 32 $ BS.take 64 bs
             v = BS.last bs
         return CompactRecSig { getCompactRecSigR = toShort r
                              , getCompactRecSigS = toShort s
@@ -170,8 +170,8 @@ instance Storable CompactRecSig where
     poke p CompactRecSig{..} =
         useByteString bs $ \(b, _) -> copyArray (castPtr p) b 65
       where
-        bs = fromShort getCompactRecSigS `BS.append`
-             fromShort getCompactRecSigR `BS.snoc`
+        bs = fromShort getCompactRecSigR `BS.append`
+             fromShort getCompactRecSigS `BS.snoc`
              getCompactRecSigV
 
 instance Serialize CompactRecSig where
