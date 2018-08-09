@@ -1,0 +1,140 @@
+name: secp256k1
+version: '0.5.4'
+synopsis: Bindings for secp256k1 library from Bitcoin Core
+description: Please see README.md
+category: Crypto
+author: Jean-Pierre Rupp
+maintainer: xenog@protonmail.com
+copyright: (c) 2017 Jean-Pierre Rupp
+license: PublicDomain
+license-file: UNLICENSE
+github: haskoin/secp256k1-haskell.git
+homepage: http://github.com/haskoin/secp256k1-haskell#readme
+extra-source-files:
+- secp256k1/README.md
+- secp256k1/autogen.sh
+- secp256k1/configure.ac
+- secp256k1/Makefile.am
+- secp256k1/COPYING
+- secp256k1/src/num_impl.h
+- secp256k1/src/bench_verify.c
+- secp256k1/src/gen_context.c
+- secp256k1/src/bench_recover.c
+- secp256k1/src/basic-config.h
+- secp256k1/src/bench_ecdh.c
+- secp256k1/src/ecmult_const.h
+- secp256k1/src/scalar_low.h
+- secp256k1/src/tests_exhaustive.c
+- secp256k1/src/ecdsa_impl.h
+- secp256k1/src/ecmult_impl.h
+- secp256k1/src/ecmult_gen_impl.h
+- secp256k1/src/scalar_8x32.h
+- secp256k1/src/scalar_8x32_impl.h
+- secp256k1/src/group.h
+- secp256k1/src/testrand_impl.h
+- secp256k1/src/modules/ecdh/main_impl.h
+- secp256k1/src/modules/ecdh/tests_impl.h
+- secp256k1/src/modules/ecdh/Makefile.am.include
+- secp256k1/src/modules/recovery/main_impl.h
+- secp256k1/src/modules/recovery/tests_impl.h
+- secp256k1/src/modules/recovery/Makefile.am.include
+- secp256k1/src/ecdsa.h
+- secp256k1/src/testrand.h
+- secp256k1/src/bench_internal.c
+- secp256k1/src/field_10x26_impl.h
+- secp256k1/src/eckey.h
+- secp256k1/src/field_5x52.h
+- secp256k1/src/field_5x52_asm_impl.h
+- secp256k1/src/asm/field_10x26_arm.s
+- secp256k1/src/field_10x26.h
+- secp256k1/src/util.h
+- secp256k1/src/num.h
+- secp256k1/src/num_gmp.h
+- secp256k1/src/scalar_4x64_impl.h
+- secp256k1/src/hash.h
+- secp256k1/src/scalar_4x64.h
+- secp256k1/src/hash_impl.h
+- secp256k1/src/tests.c
+- secp256k1/src/scalar_impl.h
+- secp256k1/src/bench_sign.c
+- secp256k1/src/field_5x52_int128_impl.h
+- secp256k1/src/field_5x52_impl.h
+- secp256k1/src/field.h
+- secp256k1/src/secp256k1.c
+- secp256k1/src/group_impl.h
+- secp256k1/src/java/org_bitcoin_NativeSecp256k1.h
+- secp256k1/src/java/org/bitcoin/NativeSecp256k1Test.java
+- secp256k1/src/java/org/bitcoin/NativeSecp256k1.java
+- secp256k1/src/java/org/bitcoin/Secp256k1Context.java
+- secp256k1/src/java/org/bitcoin/NativeSecp256k1Util.java
+- secp256k1/src/java/org_bitcoin_Secp256k1Context.h
+- secp256k1/src/java/org_bitcoin_NativeSecp256k1.c
+- secp256k1/src/java/org_bitcoin_Secp256k1Context.c
+- secp256k1/src/ecmult_gen.h
+- secp256k1/src/ecmult_const_impl.h
+- secp256k1/src/eckey_impl.h
+- secp256k1/src/field_impl.h
+- secp256k1/src/bench.h
+- secp256k1/src/scalar_low_impl.h
+- secp256k1/src/bench_schnorr_verify.c
+- secp256k1/src/scalar.h
+- secp256k1/src/num_gmp_impl.h
+- secp256k1/src/ecmult.h
+- secp256k1/TODO
+- secp256k1/include/secp256k1_recovery.h
+- secp256k1/include/secp256k1.h
+- secp256k1/include/secp256k1_ecdh.h
+- secp256k1/contrib/lax_der_parsing.c
+- secp256k1/contrib/lax_der_privatekey_parsing.c
+- secp256k1/contrib/lax_der_privatekey_parsing.h
+- secp256k1/contrib/lax_der_parsing.h
+- secp256k1/libsecp256k1.pc.in
+- secp256k1/sage/group_prover.sage
+- secp256k1/sage/weierstrass_prover.sage
+- secp256k1/sage/secp256k1.sage
+- secp256k1/build-aux/m4/ax_jni_include_dir.m4
+- secp256k1/build-aux/m4/ax_prog_cc_for_build.m4
+- secp256k1/build-aux/m4/bitcoin_secp.m4
+- README.md
+dependencies:
+- base16-bytestring
+- bytestring
+- cereal
+- entropy
+- mtl
+- QuickCheck
+- string-conversions
+library:
+  source-dirs: src
+  c-sources:
+  - secp256k1/src/secp256k1.c
+  - secp256k1/contrib/lax_der_parsing.c
+  - secp256k1/contrib/lax_der_privatekey_parsing.c
+  ghc-options: -Wall
+  cc-options: -DHAVE_CONFIG_H
+  include-dirs:
+  - secp256k1
+  - secp256k1/contrib
+  - secp256k1/include
+  exposed-modules:
+  - Crypto.Secp256k1
+  - Crypto.Secp256k1.Internal
+  dependencies:
+  - base >=4.8 && <5
+tests:
+  secp256k1-test:
+    main: Spec.hs
+    source-dirs: test
+    ghc-options:
+    - -Wall
+    - -threaded
+    - -rtsopts
+    - -with-rtsopts=-N
+    dependencies:
+    - base
+    - cryptohash
+    - HUnit
+    - secp256k1
+    - test-framework
+    - test-framework-hunit
+    - test-framework-quickcheck2
