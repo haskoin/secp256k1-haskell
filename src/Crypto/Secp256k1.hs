@@ -20,7 +20,6 @@ module Crypto.Secp256k1
     , secKey
     , getSecKey
     , derivePubKey
-    , exportSecKey
 
     -- * Public Keys
     , PubKey
@@ -34,7 +33,6 @@ module Crypto.Secp256k1
     , normalizeSig
     -- ** DER
     , importSig
-    , laxImportSig
     , exportSig
     -- ** Compact
     , CompactSig(..)
@@ -263,18 +261,6 @@ importPubKey bs =  withContext $ \ctx -> useByteString bs $ \(b, l) -> do
     ret <- withForeignPtr fp $ \p -> ecPubKeyParse ctx p b l
     if isSuccess ret then return $ Just $ PubKey fp else return Nothing
 
--- | Encode secret key as DER.  First argument 'True' for compressed output.
-exportSecKey :: Bool -> SecKey -> ByteString
-exportSecKey compress (SecKey fk) = withContext $ \ctx ->
-    withForeignPtr fk $ \k -> alloca $ \l -> allocaBytes 279 $ \o -> do
-        poke l 279
-        ret <- ecSecKeyExport ctx o l k c
-        unless (isSuccess ret) $ error "could not export secret key"
-        n <- peek l
-        packByteString (o, n)
-  where
-    c = if compress then compressed else uncompressed
-
 -- | Encode public key as DER. First argument 'True' for compressed output.
 exportPubKey :: Bool -> PubKey -> ByteString
 exportPubKey compress (PubKey pub) = withContext $ \ctx ->
@@ -308,14 +294,6 @@ importSig bs = withContext $ \ctx ->
     useByteString bs $ \(b, l) -> do
         fg <- mallocForeignPtr
         ret <- withForeignPtr fg $ \g -> ecdsaSignatureParseDer ctx g b l
-        if isSuccess ret then return $ Just $ Sig fg else return Nothing
-
--- | Relaxed DER parsing. Allows certain DER errors and violations.
-laxImportSig :: ByteString -> Maybe Sig
-laxImportSig bs = withContext $ \ctx ->
-    useByteString bs $ \(b, l) -> do
-        fg <- mallocForeignPtr
-        ret <- withForeignPtr fg $ \g -> laxDerParse ctx g b l
         if isSuccess ret then return $ Just $ Sig fg else return Nothing
 
 -- | Encode signature as strict DER.

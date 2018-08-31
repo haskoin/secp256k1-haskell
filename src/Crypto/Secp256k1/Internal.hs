@@ -353,15 +353,6 @@ foreign import ccall
     -> IO Ret
 
 foreign import ccall
-    "lax_der_parsing.h ecdsa_signature_parse_der_lax"
-    laxDerParse
-    :: Ptr Ctx
-    -> Ptr Sig64
-    -> Ptr CUChar
-    -> CSize
-    -> IO Ret
-
-foreign import ccall
     "secp256k1.h secp256k1_ecdsa_sign"
     ecdsaSign
     :: Ptr Ctx
@@ -479,14 +470,4 @@ foreign import ccall
     -> Ptr PubKey64
     -> Ptr RecSig65
     -> Ptr Msg32
-    -> IO Ret
-
-foreign import ccall
-    "lax_der_privatekey_parsing.h ec_privkey_export_der"
-    ecSecKeyExport
-    :: Ptr Ctx
-    -> Ptr CUChar -- ^ array to store DER-encoded key (allocate 279 bytes)
-    -> Ptr CSize -- ^ size of previous array, will be updated
-    -> Ptr SecKey32
-    -> SerFlags
     -> IO Ret

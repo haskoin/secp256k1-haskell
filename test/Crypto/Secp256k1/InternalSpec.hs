@@ -25,7 +25,6 @@ spec = do
         it "handles storable public key" pubkeyStorableTest
         it "handles storable signature" signatureStorableTest
         it "parses DER signature" ecdsaSignatureParseDerTest
-        it "parses lax DER signature" laxDerParseTest
         it "serializes DER signature" ecdsaSignatureSerializeDerTest
     describe "signatures" $ do
         it "verifies signature" ecdsaVerifyTest
@@ -160,17 +159,6 @@ ecdsaSignatureParseDerTest = do
         "3045022100f502bfa07af43e7ef265618b0d929a7619ee01d6150e37eb6eaaf2c8bd37\
         \fb2202206f0415ab0e9a977afd78b2c26ef39b3952096d319fd4b101c768ad6c132e30\
         \45"
-
-laxDerParseTest :: Assertion
-laxDerParseTest = do
-    ret <- liftIO $ useAsCStringLen der $ \(d, dl) -> alloca $ \s -> do
-        x <- contextCreate verify
-        laxDerParse x s (castPtr d) (fromIntegral dl)
-    assertBool "parsed signature successfully" $ isSuccess ret
-  where
-    der = fst $ B16.decode
-        "30450220f502bfa07af43e7ef265618b0d929a7619ee01d6150e37eb6eaaf2c8bd37fb\
-        \2202206f0415ab0e9a977afd78b2c26ef39b3952096d319fd4b101c768ad6c132e3045"
 
 parseDer :: Ptr Ctx -> ByteString -> IO Sig64
 parseDer x bs = useAsCStringLen bs $ \(d, dl) -> alloca $ \s -> do

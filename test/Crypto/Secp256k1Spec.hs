@@ -24,7 +24,6 @@ spec = do
     describe "serialization" $ do
         it "serializes public key" $ property $ serializePubKeyTest
         it "serializes DER signature" $ property $ serializeSigTest
-        it "serializes lax DER signature" $ property $ serializeLaxSigTest
         it "serializes compact signature" $ property $ serializeCompactSigTest
         it "serializes compact recoverable signature" $
             property $ serializeCompactRecSigTest
@@ -141,14 +140,6 @@ serializePubKeyTest (fp, b) =
 serializeSigTest :: (Msg, SecKey) -> Bool
 serializeSigTest (fm, fk) =
     case importSig $ exportSig fg of
-        Just fg' -> fg == fg'
-        Nothing  -> False
-  where
-    fg = signMsg fk fm
-
-serializeLaxSigTest :: (Msg, SecKey) -> Bool
-serializeLaxSigTest (fm, fk) =
-    case laxImportSig $ exportSig fg of
         Just fg' -> fg == fg'
         Nothing  -> False
   where
