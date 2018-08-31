@@ -2,12 +2,12 @@
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: c1cbb54fcb4e836008396d822f7b6c79c523bb783d6477eef299387bcb569bae
+-- hash: 9fd6f5be2cfb4b06721e74cd378459ffdf2d51e1a03a62d8484d9d342e985261
 
 name:           secp256k1
 version:        1.0.0
 synopsis:       Bindings for secp256k1 library from Bitcoin Core
-description:    Please see README.md
+description:    Sign and verify signatures using the very fast C secp256k1 library from Pieter Wuille. Has Haskell types and abstractions for keys and signatures.
 category:       Crypto
 homepage:       http://github.com/haskoin/secp256k1-haskell#readme
 bug-reports:    https://github.com/haskoin/secp256k1-haskell.git/issues
