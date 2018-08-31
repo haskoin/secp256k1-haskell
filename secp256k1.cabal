@@ -1,11 +1,11 @@
--- This file has been generated from package.yaml by hpack version 0.20.0.
+-- This file has been generated from package.yaml by hpack version 0.28.2.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 4e87eeb79d708983b0d5be63fa08776a63a34a09a94154c1aba3d22c16dc3bbe
+-- hash: c1cbb54fcb4e836008396d822f7b6c79c523bb783d6477eef299387bcb569bae
 
 name:           secp256k1
-version:        0.5.3
+version:        1.0.0
 synopsis:       Bindings for secp256k1 library from Bitcoin Core
 description:    Please see README.md
 category:       Crypto
@@ -18,7 +18,6 @@ license:        PublicDomain
 license-file:   UNLICENSE
 build-type:     Simple
 cabal-version:  >= 1.10
-
 extra-source-files:
     README.md
     secp256k1/autogen.sh
@@ -124,12 +123,15 @@ library
       secp256k1/contrib/lax_der_privatekey_parsing.c
       secp256k1/src/secp256k1.c
   build-depends:
-      QuickCheck
+      HUnit
+    , QuickCheck
     , base >=4.8 && <5
     , base16-bytestring
     , bytestring
     , cereal
+    , cryptohash
     , entropy
+    , hspec
     , mtl
     , string-conversions
   exposed-modules:
@@ -139,29 +141,27 @@ library
       Paths_secp256k1
   default-language: Haskell2010
 
-test-suite secp256k1-test
+test-suite spec
   type: exitcode-stdio-1.0
   main-is: Spec.hs
+  other-modules:
+      Crypto.Secp256k1.InternalSpec
+      Crypto.Secp256k1Spec
+      Paths_secp256k1
   hs-source-dirs:
       test
-  ghc-options: -Wall -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       HUnit
     , QuickCheck
-    , base
+    , base >=4.8 && <5
     , base16-bytestring
     , bytestring
     , cereal
     , cryptohash
     , entropy
+    , hspec ==2.*
     , mtl
     , secp256k1
     , string-conversions
-    , test-framework
-    , test-framework-hunit
-    , test-framework-quickcheck2
-  other-modules:
-      Crypto.Secp256k1.Internal.Tests
-      Crypto.Secp256k1.Tests
-      Paths_secp256k1
   default-language: Haskell2010
+  build-tool-depends: hspec-discover:hspec-discover == 2.*

@@ -1,54 +1,46 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Crypto.Secp256k1.Internal.Tests (tests) where
+module Crypto.Secp256k1.InternalSpec (spec) where
 
 import           Control.Monad
 import           Control.Monad.Trans
 import           Crypto.Secp256k1.Internal
-import           Data.ByteString                (ByteString, packCStringLen,
-                                                 useAsCStringLen)
-import qualified Data.ByteString.Base16         as B16
-import           Data.ByteString.Short          (toShort)
+import           Data.ByteString           (ByteString, packCStringLen,
+                                            useAsCStringLen)
+import qualified Data.ByteString.Base16    as B16
+import           Data.ByteString.Short     (toShort)
 import           Foreign
 import           System.Entropy
-import           Test.Framework                 (Test, testGroup)
-import           Test.Framework.Providers.HUnit (testCase)
-import           Test.HUnit                     (Assertion, assertBool,
-                                                 assertEqual)
+import           Test.Hspec
+import           Test.HUnit                (Assertion, assertBool, assertEqual)
 
-tests :: [Test]
-tests =
-    [ testGroup "Housekeeping"
-        [ testCase "Create context"           createContextTest
-        , testCase "Randomize context"        randomizeContextTest
-        , testCase "Clone context"            cloneContextTest
-        ]
-    , testGroup "Serialization"
-        [ testCase "Parse public key"         ecPubkeyParseTest
-        , testCase "Serialize public key"     ecPubKeySerializeTest
-        , testCase "Storable public key"      pubkeyStorableTest
-        , testCase "Storable signature"       signatureStorableTest
-        , testCase "Parse DER signature"      ecdsaSignatureParseDerTest
-        , testCase "Lax parse DER signature"  laxDerParseTest
-        , testCase "Serialize DER signature"  ecdsaSignatureSerializeDerTest
-        ]
-    , testGroup "Signatures"
-        [ testCase "ECDSA verify"             ecdsaVerifyTest
+spec :: Spec
+spec = do
+    describe "housekeeping" $ do
+        it "creates context" createContextTest
+        it "randomizez context" randomizeContextTest
+        it "clones context" cloneContextTest
+    describe "serialization" $ do
+        it "parses public key" ecPubkeyParseTest
+        it "serializes public key" ecPubKeySerializeTest
+        it "handles storable public key" pubkeyStorableTest
+        it "handles storable signature" signatureStorableTest
+        it "parses DER signature" ecdsaSignatureParseDerTest
+        it "parses lax DER signature" laxDerParseTest
+        it "serializes DER signature" ecdsaSignatureSerializeDerTest
+    describe "signatures" $ do
+        it "verifies signature" ecdsaVerifyTest
         -- TODO:
         -- , testCase "RFC6979 nonce function"   nonce_function_rfc6979_test
-        , testCase "ECDSA sign"               ecdsaSignTest
-        ]
-    , testGroup "Secret keys"
-        [ testCase "Verify secret key"        ecSecKeyVerifyTest
-        , testCase "Create public key"        ecPubkeyCreateTest
-        , testCase "Tweak add secret key"     ecSecKeyTweakAddTest
-        , testCase "Tweak mult. secret key"   ecSecKeyTweakMulTest
-        ]
-    , testGroup "Public keys"
-        [ testCase "Tweak add public key"     ecPubKeyTweakAddTest
-        , testCase "Tweak mult. public key"   ecPubKeyTweakMulTest
-        , testCase "Combine public keys"      ecPubKeyCombineTest
-        ]
-    ]
+        it "signs message" ecdsaSignTest
+    describe "secret keys" $ do
+        it "verifies secret key" ecSecKeyVerifyTest
+        it "creates public key" ecPubkeyCreateTest
+        it "adds secret key" ecSecKeyTweakAddTest
+        it "multiplies secret key" ecSecKeyTweakMulTest
+    describe "public keys" $ do
+        it "adds public key" ecPubKeyTweakAddTest
+        it "multiplies public key" ecPubKeyTweakMulTest
+        it "combines public keys" ecPubKeyCombineTest
 
 withEntropy :: (Ptr Seed32 -> IO a) -> IO a
 withEntropy f =

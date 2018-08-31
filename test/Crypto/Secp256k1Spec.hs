@@ -1,57 +1,57 @@
-module Crypto.Secp256k1.Tests (tests) where
+module Crypto.Secp256k1Spec (spec) where
 
 import           Crypto.Secp256k1
+import qualified Data.ByteString.Base16  as B16
+import qualified Data.ByteString.Char8   as B8
+import           Data.Maybe              (fromMaybe)
 import           Data.Serialize
-import qualified Data.ByteString.Base16               as B16
-import qualified Data.ByteString.Char8                as B8
-import           Data.Maybe                           (fromMaybe)
-import           Data.String                          (fromString)
-import           Data.String.Conversions              (cs)
-import           Test.Framework                       (Test, testGroup)
-import           Test.Framework.Providers.HUnit       (testCase)
-import           Test.Framework.Providers.QuickCheck2 (testProperty)
-import           Test.HUnit                           (Assertion, assertEqual)
-import           Test.QuickCheck                      (Property, (==>))
+import           Data.String             (fromString)
+import           Data.String.Conversions (cs)
+import           Test.Hspec
+import           Test.HUnit              (Assertion, assertEqual)
+import           Test.QuickCheck         (Property, property, (==>))
 
-tests :: [Test]
-tests =
-    [ testGroup "Signing"
-        [ testProperty "Signing messages" signMsgTest
-        , testProperty "Recoverably signing messages" signRecMsgTest
-        , testProperty "Bad signatures" badSignatureTest
-        , testProperty "Bad recoverable signatures" badRecSignatureTest
-        , testProperty "Normalize signatures" normalizeSigTest
-        , testProperty "Recover public keys" recoverTest
-        , testProperty "Bad recover public keys" badRecoverTest
-        ]
-    , testGroup "Serialization"
-        [ testProperty "Serialize public key" serializePubKeyTest
-        , testProperty "Serialize DER signature" serializeSigTest
-        , testProperty "Serialize lax DER signature" serializeLaxSigTest
-        , testProperty "Serialize compact signature" serializeCompactSigTest
-        , testProperty "Serialize compact recoverable signature" serializeCompactRecSigTest
-        , testProperty "Serialize secret key" serializeSecKeyTest
-        , testProperty "Show/Read public key" (showRead :: PubKey -> Bool)
-        , testProperty "Show/Read secret key" (showRead :: SecKey -> Bool)
-        , testProperty "Show/Read tweak" (showReadTweak :: SecKey -> Bool)
-        , testProperty "Show/Read signature" (showReadSig :: (SecKey, Msg) -> Bool)
-        , testProperty "Show/Read recoverable signature" (showReadRecSig :: (SecKey, Msg) -> Bool)
-        , testProperty "Show/Read message" (showRead :: Msg -> Bool)
-        , testProperty "String public key" isStringPubKey
-        , testProperty "String secret key" isStringSecKey
-        , testProperty "String signature" isStringSig
-        , testProperty "String recoverable signature" isStringRecSig
-        , testProperty "String message" isStringMsg
-        , testProperty "String tweak" isStringTweak
-        ]
-    , testGroup "Tweaks"
-        [ testCase "Tweak add secret key" tweakAddSecKeyTest
-        , testCase "Tweak multiply secret key" tweakMulSecKeyTest
-        , testCase "Tweak add public key" tweakAddPubKeyTest
-        , testCase "Tweak multiply public key" tweakMulPubKeyTest
-        , testCase "Combine public keys" combinePubKeyTest
-        ]
-    ]
+spec :: Spec
+spec = do
+    describe "signatures" $ do
+        it "signs message" $ property $ signMsgTest
+        it "recovers key from signed message" $ property $ signRecMsgTest
+        it "detects bad signature" $ property $ badSignatureTest
+        it "detects bad recoverable signature" $ property $ badRecSignatureTest
+        it "normalizes signatures" $ property $ normalizeSigTest
+        it "recovers public keys" $ property $ recoverTest
+        it "Bad recover public keys" $ property $ badRecoverTest
+    describe "serialization" $ do
+        it "serializes public key" $ property $ serializePubKeyTest
+        it "serializes DER signature" $ property $ serializeSigTest
+        it "serializes lax DER signature" $ property $ serializeLaxSigTest
+        it "serializes compact signature" $ property $ serializeCompactSigTest
+        it "serializes compact recoverable signature" $
+            property $ serializeCompactRecSigTest
+        it "serialize secret key" $ property $ serializeSecKeyTest
+        it "shows and reads public key" $
+            property $ (showRead :: PubKey -> Bool)
+        it "shows and reads secret key" $
+            property $ (showRead :: SecKey -> Bool)
+        it "shows and reads tweak" $
+            property $ (showReadTweak :: SecKey -> Bool)
+        it "shows and reads signature" $
+            property $ (showReadSig :: (SecKey, Msg) -> Bool)
+        it "shows and reads recoverable signature" $
+            property $ (showReadRecSig :: (SecKey, Msg) -> Bool)
+        it "shows and reads message" $ property $ (showRead :: Msg -> Bool)
+        it "reads public key from string" $ property $ isStringPubKey
+        it "reads secret key from string" $ property $ isStringSecKey
+        it "reads signature from string" $ property $ isStringSig
+        it "reads recoverable signature from string" $ property $ isStringRecSig
+        it "reads message from string" $ property $ isStringMsg
+        it "reads tweak from string" $ property $ isStringTweak
+    describe "tweaks" $ do
+        it "add secret key" $ property $ tweakAddSecKeyTest
+        it "multiply secret key" $ property $ tweakMulSecKeyTest
+        it "add public key" $ property $ tweakAddPubKeyTest
+        it "multiply public key" $ property $ tweakMulPubKeyTest
+        it "combine public keys" $ property $ combinePubKeyTest
 
 isStringPubKey :: (PubKey, Bool) -> Bool
 isStringPubKey (k, c) = k == fromString (cs hex) where
@@ -136,13 +136,13 @@ serializePubKeyTest :: (PubKey, Bool) -> Bool
 serializePubKeyTest (fp, b) =
     case importPubKey $ exportPubKey b fp of
         Just fp' -> fp == fp'
-        Nothing -> False
+        Nothing  -> False
 
 serializeSigTest :: (Msg, SecKey) -> Bool
 serializeSigTest (fm, fk) =
     case importSig $ exportSig fg of
         Just fg' -> fg == fg'
-        Nothing -> False
+        Nothing  -> False
   where
     fg = signMsg fk fm
 
@@ -150,7 +150,7 @@ serializeLaxSigTest :: (Msg, SecKey) -> Bool
 serializeLaxSigTest (fm, fk) =
     case laxImportSig $ exportSig fg of
         Just fg' -> fg == fg'
-        Nothing -> False
+        Nothing  -> False
   where
     fg = signMsg fk fm
 
@@ -158,7 +158,7 @@ serializeCompactSigTest :: (Msg, SecKey) -> Bool
 serializeCompactSigTest (fm, fk) =
     case importCompactSig $ exportCompactSig fg of
         Just fg' -> fg == fg'
-        Nothing -> False
+        Nothing  -> False
   where
     fg = signMsg fk fm
 
@@ -166,7 +166,7 @@ serializeCompactRecSigTest :: (Msg, SecKey) -> Bool
 serializeCompactRecSigTest (fm, fk) =
     case importCompactRecSig $ exportCompactRecSig fg of
         Just fg' -> fg == fg'
-        Nothing -> False
+        Nothing  -> False
   where
     fg = signRecMsg fk fm
 
@@ -174,7 +174,7 @@ serializeSecKeyTest :: SecKey -> Bool
 serializeSecKeyTest fk =
     case secKey $ getSecKey fk of
         Just fk' -> fk == fk'
-        Nothing -> False
+        Nothing  -> False
 
 tweakAddSecKeyTest :: Assertion
 tweakAddSecKeyTest =
