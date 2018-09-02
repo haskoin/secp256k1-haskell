@@ -85,8 +85,7 @@ decodeHex str = if BS.null r then Just bs else Nothing where
     (bs, r) = B16.decode $ cs str
 
 instance Read PubKey where
-    readPrec = parens $ do
-        Ident "fromString" <- lexP
+    readPrec = do
         String str <- lexP
         maybe pfail return $ importPubKey =<< decodeHex str
 
@@ -95,12 +94,10 @@ instance IsString PubKey where
         e = error "Could not decode public key from hex string"
 
 instance Show PubKey where
-    showsPrec d k = showParen (d > 10) $
-        showString "fromString " . shows (B16.encode $ exportPubKey True k)
+    showsPrec _ = shows . B16.encode . exportPubKey True
 
 instance Read Msg where
     readPrec = parens $ do
-        Ident "fromString" <- lexP
         String str <- lexP
         maybe pfail return $ msg =<< decodeHex str
 
@@ -109,12 +106,10 @@ instance IsString Msg where
         e = error "Could not decode message from hex string"
 
 instance Show Msg where
-    showsPrec d m = showParen (d > 10) $
-        showString "fromString " . shows (B16.encode $ getMsg m)
+    showsPrec _ = shows . B16.encode . getMsg
 
 instance Read Sig where
     readPrec = parens $ do
-        Ident "fromString" <- lexP
         String str <- lexP
         maybe pfail return $ importSig =<< decodeHex str
 
@@ -123,8 +118,7 @@ instance IsString Sig where
         e = error "Could not decode signature from hex string"
 
 instance Show Sig where
-    showsPrec d s = showParen (d > 10) $
-        showString "fromString " . shows (B16.encode $ exportSig s)
+    showsPrec _ = shows . B16.encode . exportSig
 
 recSigFromString :: String -> Maybe RecSig
 recSigFromString str = do
@@ -134,7 +128,6 @@ recSigFromString str = do
 
 instance Read RecSig where
     readPrec = parens $ do
-        Ident "fromString" <- lexP
         String str <- lexP
         maybe pfail return $ recSigFromString str
 
@@ -144,12 +137,10 @@ instance IsString RecSig where
         e = error "Could not decode signature from hex string"
 
 instance Show RecSig where
-    showsPrec d s = showParen (d > 10) $
-        showString "fromString " . shows (B16.encode . encode $ exportCompactRecSig s)
+    showsPrec _ = shows . B16.encode . encode . exportCompactRecSig
 
 instance Read SecKey where
     readPrec = parens $ do
-        Ident "fromString" <- lexP
         String str <- lexP
         maybe pfail return $ secKey =<< decodeHex str
 
@@ -158,12 +149,10 @@ instance IsString SecKey where
         e = error "Colud not decode secret key from hex string"
 
 instance Show SecKey where
-    showsPrec d k = showParen (d > 10) $
-        showString "fromString " . shows (B16.encode $ getSecKey k)
+    showsPrec _ = shows . B16.encode . getSecKey
 
 instance Read Tweak where
     readPrec = parens $ do
-        Ident "fromString" <- lexP
         String str <- lexP
         maybe pfail return $ tweak =<< decodeHex str
 
@@ -172,8 +161,7 @@ instance IsString Tweak where
         e = error "Could not decode tweak from hex string"
 
 instance Show Tweak where
-    showsPrec d k = showParen (d > 10) $
-        showString "fromString " . shows (B16.encode $ getTweak k)
+    showsPrec _ = shows . B16.encode . getTweak
 
 instance Eq PubKey where
     fp1 == fp2 = getPubKey fp1 == getPubKey fp2
