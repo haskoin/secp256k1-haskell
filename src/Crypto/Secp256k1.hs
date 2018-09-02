@@ -446,13 +446,13 @@ instance Arbitrary Msg where
     arbitrary = gen_msg
       where
         valid_bs = bs_gen `suchThat` isJust
-        bs_gen = (msg . BS.pack) <$> replicateM 32 arbitrary
+        bs_gen = (msg . BS.pack) <$> replicateM 32 arbitraryBoundedRandom
         gen_msg = fromJust <$> valid_bs
 
 instance Arbitrary SecKey where
     arbitrary = gen_key where
         valid_bs = bs_gen `suchThat` isJust
-        bs_gen = (secKey . BS.pack) <$> replicateM 32 arbitrary
+        bs_gen = (secKey . BS.pack) <$> replicateM 32 arbitraryBoundedRandom
         gen_key = fromJust <$> valid_bs
 
 instance Arbitrary PubKey where
