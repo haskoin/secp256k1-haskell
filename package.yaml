@@ -19,7 +19,6 @@ dependencies:
   - bytestring
   - cereal
   - entropy
-  - mtl
   - QuickCheck
   - string-conversions
 library:
@@ -27,7 +26,13 @@ library:
   extra-libraries: secp256k1
 tests:
   spec:
-    defaults: hspec/hspec@master
+    main: Spec.hs
+    source-dirs: test
+    verbatim:
+      build-tool-depends:
+          hspec-discover:hspec-discover
     dependencies:
+      - hspec
       - secp256k1-haskell
+      - mtl
       - HUnit
