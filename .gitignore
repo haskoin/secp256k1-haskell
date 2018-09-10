@@ -16,4 +16,4 @@ cabal.sandbox.config
 *.hp
 .stack-work
 TAGS
-secp256k1.cabal
+secp256k1-haskell.cabal
