@@ -18,10 +18,7 @@ dependencies:
   - base16-bytestring
   - bytestring
   - cereal
-  - cryptohash
   - entropy
-  - hspec
-  - HUnit
   - mtl
   - QuickCheck
   - string-conversions
@@ -33,3 +30,4 @@ tests:
     defaults: hspec/hspec@master
     dependencies:
       - secp256k1-haskell
+      - HUnit
