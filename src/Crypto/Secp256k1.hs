@@ -60,15 +60,17 @@ module Crypto.Secp256k1
 
 import           Control.Monad
 import           Crypto.Secp256k1.Internal
-import           Data.Serialize
 import           Data.ByteString           (ByteString)
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Base16    as B16
 import           Data.ByteString.Short     (fromShort, toShort)
+import           Data.Hashable
 import           Data.Maybe
+import           Data.Serialize
 import           Data.String
 import           Data.String.Conversions
 import           Foreign
+import           GHC.Generics
 import           System.IO.Unsafe
 import           Test.QuickCheck
 import           Text.Read
@@ -89,6 +91,9 @@ instance Read PubKey where
         String str <- lexP
         maybe pfail return $ importPubKey =<< decodeHex str
 
+instance Hashable PubKey where
+    i `hashWithSalt` k = i `hashWithSalt` exportPubKey True k
+
 instance IsString PubKey where
     fromString = fromMaybe e . (importPubKey <=< decodeHex) where
         e = error "Could not decode public key from hex string"
@@ -100,6 +105,9 @@ instance Read Msg where
     readPrec = parens $ do
         String str <- lexP
         maybe pfail return $ msg =<< decodeHex str
+
+instance Hashable Msg where
+    i `hashWithSalt` m = i `hashWithSalt` getMsg m
 
 instance IsString Msg where
     fromString = fromMaybe e . (msg <=< decodeHex)  where
@@ -117,6 +125,9 @@ instance IsString Sig where
     fromString = fromMaybe e . (importSig <=< decodeHex) where
         e = error "Could not decode signature from hex string"
 
+instance Hashable Sig where
+    i `hashWithSalt` s = i `hashWithSalt` exportSig s
+
 instance Show Sig where
     showsPrec _ = shows . B16.encode . exportSig
 
@@ -125,6 +136,9 @@ recSigFromString str = do
     bs <- decodeHex str
     rs <- either (const Nothing) Just $ decode bs
     importCompactRecSig rs
+
+instance Hashable RecSig where
+    i `hashWithSalt` s = i `hashWithSalt` encode (exportCompactRecSig s)
 
 instance Read RecSig where
     readPrec = parens $ do
@@ -144,12 +158,18 @@ instance Read SecKey where
         String str <- lexP
         maybe pfail return $ secKey =<< decodeHex str
 
+instance Hashable SecKey where
+    i `hashWithSalt` k = i `hashWithSalt` getSecKey k
+
 instance IsString SecKey where
     fromString = fromMaybe e . (secKey <=< decodeHex) where
         e = error "Colud not decode secret key from hex string"
 
 instance Show SecKey where
     showsPrec _ = shows . B16.encode . getSecKey
+
+instance Hashable Tweak where
+    i `hashWithSalt` t = i `hashWithSalt` getTweak t
 
 instance Read Tweak where
     readPrec = parens $ do
