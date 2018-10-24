@@ -58,22 +58,28 @@ module Crypto.Secp256k1
     , combinePubKeys
     ) where
 
-import           Control.Monad
-import           Crypto.Secp256k1.Internal
+import           Control.Monad             (replicateM, unless, (<=<))
 import           Data.ByteString           (ByteString)
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Base16    as B16
 import           Data.ByteString.Short     (fromShort, toShort)
-import           Data.Hashable
-import           Data.Maybe
-import           Data.Serialize
-import           Data.String
-import           Data.String.Conversions
-import           Foreign
-import           GHC.Generics
-import           System.IO.Unsafe
-import           Test.QuickCheck
-import           Text.Read
+import           Data.Hashable             (Hashable (..))
+import           Data.Maybe                (fromJust, fromMaybe, isJust)
+import           Data.Serialize            (decode, encode)
+import           Data.String               (IsString (..))
+import           Data.String.Conversions   (ConvertibleStrings, cs)
+import           Foreign                   (ForeignPtr (..), alloca,
+                                            allocaArray, allocaBytes,
+                                            mallocForeignPtr, nullFunPtr,
+                                            nullPtr, peek, poke, pokeArray,
+                                            withForeignPtr)
+import           System.IO.Unsafe          (unsafePerformIO)
+import           Test.QuickCheck           (Arbitrary (..),
+                                            arbitraryBoundedRandom, suchThat)
+import           Text.Read                 (Lexeme (String), lexP, parens,
+                                            pfail, readPrec)
+
+import           Crypto.Secp256k1.Internal
 
 newtype PubKey = PubKey (ForeignPtr PubKey64)
 newtype Msg = Msg (ForeignPtr Msg32)
