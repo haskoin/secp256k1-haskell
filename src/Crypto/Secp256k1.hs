@@ -72,7 +72,7 @@ import           Data.String
 import           Data.String.Conversions
 import           Foreign
 import           System.IO.Unsafe
-import           Test.QuickCheck
+import           Test.QuickCheck           hiding (isSuccess)
 import           Text.Read
 
 newtype PubKey = PubKey (ForeignPtr PubKey64)
