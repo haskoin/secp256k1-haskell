@@ -96,20 +96,20 @@ extra-source-files:
     secp256k1/build-aux/m4/ax_prog_cc_for_build.m4
     secp256k1/build-aux/m4/bitcoin_secp.m4
     README.md
-cabal-version:       >=1.10
+cabal-version: 2.0
 
 library
     hs-source-dirs:      src
     exposed-modules:     Crypto.Secp256k1
                        , Crypto.Secp256k1.Internal
     build-depends:       base >= 4.8 && < 5
-                       , base16-bytestring
+                       , base16-bytestring ^>= 0.1.1.6
                        , bytestring
-                       , cereal
-                       , entropy
+                       , cereal ^>= 0.5.8.1
+                       , entropy ^>= 0.4.1.4
                        , mtl
-                       , QuickCheck
-                       , string-conversions
+                       , QuickCheck ^>= 2.12.6.1
+                       , string-conversions ^>= 0.4.0.1
     default-language:    Haskell2010
     ghc-options:         -Wall
     cc-options:          -DHAVE_CONFIG_H
@@ -133,9 +133,9 @@ test-suite secp256k1-test
                        , QuickCheck
                        , secp256k1
                        , string-conversions
-                       , test-framework
-                       , test-framework-hunit
-                       , test-framework-quickcheck2
+                       , test-framework ^>= 0.8.2.0
+                       , test-framework-hunit ^>= 0.3.0.2
+                       , test-framework-quickcheck2 ^>= 0.3.0.5
     ghc-options:         -Wall -threaded -rtsopts -with-rtsopts=-N
     default-language:    Haskell2010
 
@@ -145,5 +145,5 @@ source-repository head
 
 custom-setup
     setup-depends:       base >= 4.8 && < 5
-                       , Cabal >= 1.10
+                       , Cabal >= 2.0
 
