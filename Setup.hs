@@ -35,11 +35,11 @@ configure :: Args -> ConfigFlags -> PackageDescription -> LocalBuildInfo -> IO (
 configure args flags pd lbi = do
     (ccProg, ccFlags) <- configureCCompiler v programConfig
     env <- getEnvironment
-    let env' = appendToEnvironment ("CFLAGS", unwords ccFlags) env
-        args' = args ++ ["--with-gcc=" ++ ccProg]
-    maybeExit $ runInRepo v "sh" args' (Just env')
+    let env' = appendToEnvironment ("CFLAGS", unwords ccFlags) $
+               appendToEnvironment ("CC", ccProg) env
+    maybeExit $ runInRepo v "sh" args (Just env')
   where
-    args = "./configure" : "--enable-module-recovery" : configureArgs False flags
+    args = "./configure" : "--disable-jni" : "--enable-module-recovery" : configureArgs False flags
     v = fromFlag $ configVerbosity flags
     appendToEnvironment (key, val) [] = [(key, val)]
     appendToEnvironment (key, val) (kv@(k, v) : rest)
