@@ -25,6 +25,9 @@ dependencies:
 library:
   source-dirs: src
   extra-libraries: secp256k1
+  when:
+  - condition: flag(ecdh)
+    cpp-options: -DECDH
 tests:
   spec:
     main: Spec.hs
@@ -37,3 +40,8 @@ tests:
       - secp256k1-haskell
       - mtl
       - HUnit
+flags:
+  ecdh:
+    description: "Enable (experimental) ECDH APIs"
+    manual: true
+    default: false

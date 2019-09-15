@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                   #-}
 {-# LANGUAGE FlexibleContexts      #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-|
@@ -56,6 +57,11 @@ module Crypto.Secp256k1
     , tweakAddPubKey
     , tweakMulPubKey
     , combinePubKeys
+
+#ifdef ECDH
+    -- * Diffie Hellman
+    , ecdh
+#endif
     ) where
 
 import           Control.Monad             (replicateM, unless, (<=<))
@@ -455,6 +461,20 @@ recover (RecSig frg) (Msg fm) = withContext $ \ctx ->
         fp <- mallocForeignPtr
         ret <- withForeignPtr fp $ \pp -> ecdsaRecover ctx pp prg pm
         if isSuccess ret then return $ Just $ PubKey fp else return Nothing
+
+#ifdef ECDH
+-- | Compute Diffie-Hellman secret.
+ecdh :: PubKey -> SecKey -> ByteString
+ecdh (PubKey pk) (SecKey sk) = withContext $ \ctx ->
+    withForeignPtr pk $ \pkPtr -> withForeignPtr sk $ \skPtr ->
+        allocaBytes size $ \o -> do
+            ret <- ecEcdh ctx o pkPtr skPtr nullPtr nullPtr
+            unless (isSuccess ret) $ error "ecdh failed"
+            packByteString (o, size)
+  where
+    size :: Integral a => a
+    size = 32
+#endif
 
 instance Arbitrary Msg where
     arbitrary = gen_msg
