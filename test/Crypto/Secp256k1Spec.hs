@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 module Crypto.Secp256k1Spec (spec) where
 
 import           Crypto.Secp256k1
@@ -51,6 +52,10 @@ spec = do
         it "add public key" $ property $ tweakAddPubKeyTest
         it "multiply public key" $ property $ tweakMulPubKeyTest
         it "combine public keys" $ property $ combinePubKeyTest
+#ifdef ECDH
+    describe "ecdh" $ do
+        it "computes dh secret" $ property $ computeDhSecret
+#endif
 
 isStringPubKey :: (PubKey, Bool) -> Bool
 isStringPubKey (k, c) = k == fromString (cs hex) where
@@ -199,14 +204,12 @@ tweakAddPubKeyTest =
   where
     tweaked = do
         pub <- importPubKey $ fst $ B16.decode $ B8.pack
-            "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd44705\
-            \12213d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
+            "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd4470512213d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
         twk <- tweak $ fst $ B16.decode $ B8.pack
             "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
         tweakAddPubKey pub twk
     expected = importPubKey $ fst $ B16.decode $ B8.pack
-        "04441c3982b97576646e0df0c96736063df6b42f2ee566d13b9f6424302d1379e518fd\
-        \c87a14c5435bff7a5db4552042cb4120c6b86a4bbd3d0643f3c14ad01368"
+        "04441c3982b97576646e0df0c96736063df6b42f2ee566d13b9f6424302d1379e518fdc87a14c5435bff7a5db4552042cb4120c6b86a4bbd3d0643f3c14ad01368"
 
 tweakMulPubKeyTest :: Assertion
 tweakMulPubKeyTest =
@@ -214,14 +217,12 @@ tweakMulPubKeyTest =
   where
     tweaked = do
         pub <- importPubKey $ fst $ B16.decode $ B8.pack
-            "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd44705\
-            \12213d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
+            "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd4470512213d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
         twk <- tweak $ fst $ B16.decode $ B8.pack
             "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
         tweakMulPubKey pub twk
     expected = importPubKey $ fst $ B16.decode $ B8.pack
-        "04f379dc99cdf5c83e433defa267fbb3377d61d6b779c06a0e4ce29ae3ff5353b12ae4\
-        \9c9d07e7368f2ba5a446c203255ce912322991a2d6a9d5d5761c61ed1845"
+        "04f379dc99cdf5c83e433defa267fbb3377d61d6b779c06a0e4ce29ae3ff5353b12ae49c9d07e7368f2ba5a446c203255ce912322991a2d6a9d5d5761c61ed1845"
 
 combinePubKeyTest :: Assertion
 combinePubKeyTest =
@@ -229,15 +230,26 @@ combinePubKeyTest =
   where
     combined = do
         pub1 <- importPubKey $ fst $ B16.decode $ B8.pack
-            "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd44705\
-            \12213d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
+            "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd4470512213d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
         pub2 <- importPubKey $ fst $ B16.decode $ B8.pack
-            "0487d82042d93447008dfe2af762068a1e53ff394a5bf8f68a045fa642b99ea5d1\
-            \53f577dd2dba6c7ae4cfd7b6622409d7edd2d76dd13a8092cd3af97b77bd2c77"
+            "0487d82042d93447008dfe2af762068a1e53ff394a5bf8f68a045fa642b99ea5d153f577dd2dba6c7ae4cfd7b6622409d7edd2d76dd13a8092cd3af97b77bd2c77"
         pub3 <- importPubKey $ fst $ B16.decode $ B8.pack
-            "049b101edcbe1ee37ff6b2318526a425b629e823d7d8d9154417880595a28000ee\
-            \3febd908754b8ce4e491aa6fe488b41fb5d4bb3788e33c9ff95a7a9229166d59"
+            "049b101edcbe1ee37ff6b2318526a425b629e823d7d8d9154417880595a28000ee3febd908754b8ce4e491aa6fe488b41fb5d4bb3788e33c9ff95a7a9229166d59"
         combinePubKeys [pub1, pub2, pub3]
     expected = importPubKey $ fst $ B16.decode $ B8.pack
-        "043d9a7ec70011efc23c33a7e62d2ea73cca87797e3b659d93bea6aa871aebde56c3bc\
-        \6134ca82e324b0ab9c0e601a6d2933afe7fb5d9f3aae900f5c5dc6e362c8"
+        "043d9a7ec70011efc23c33a7e62d2ea73cca87797e3b659d93bea6aa871aebde56c3bc6134ca82e324b0ab9c0e601a6d2933afe7fb5d9f3aae900f5c5dc6e362c8"
+
+#ifdef ECDH
+computeDhSecret :: Assertion
+computeDhSecret =
+    assertEqual "ecdh computes known secret" expected computed
+  where
+    computed = do
+        pub <- importPubKey $ fst $ B16.decode $ B8.pack
+            "028d7500dd4c12685d1f568b4c2b5048e8534b873319f3a8daa612b469132ec7f7"
+        sec <- secKey $ fst $ B16.decode $ B8.pack
+            "1212121212121212121212121212121212121212121212121212121212121212"
+        pure $ ecdh pub sec
+    expected = Just $ fst $ B16.decode $ B8.pack
+        "1e2fb3c8fe8fb9f262f649f64d26ecf0f2c0a805a767cf02dc2d77a6ef1fdcc3"
+#endif
