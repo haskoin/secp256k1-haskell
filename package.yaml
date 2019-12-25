@@ -24,7 +24,8 @@ dependencies:
   - string-conversions
 library:
   source-dirs: src
-  extra-libraries: secp256k1
+  pkg-config-dependencies:
+    - libsecp256k1
   when:
   - condition: flag(ecdh)
     cpp-options: -DECDH
