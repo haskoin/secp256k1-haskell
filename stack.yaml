@@ -1,4 +1,5 @@
-resolver: lts-14.5
+resolver: lts-14.19
 nix:
   packages:
     - secp256k1
+    - pkg-config
