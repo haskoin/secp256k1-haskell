@@ -74,11 +74,10 @@ import           Data.Maybe                (fromJust, fromMaybe, isJust)
 import           Data.Serialize            (decode, encode)
 import           Data.String               (IsString (..))
 import           Data.String.Conversions   (ConvertibleStrings, cs)
-import           Foreign                   (ForeignPtr (..), alloca,
-                                            allocaArray, allocaBytes,
-                                            mallocForeignPtr, nullFunPtr,
-                                            nullPtr, peek, poke, pokeArray,
-                                            withForeignPtr)
+import           Foreign                   (ForeignPtr, alloca, allocaArray,
+                                            allocaBytes, mallocForeignPtr,
+                                            nullFunPtr, nullPtr, peek, poke,
+                                            pokeArray, withForeignPtr)
 import           System.IO.Unsafe          (unsafePerformIO)
 import           Test.QuickCheck           (Arbitrary (..),
                                             arbitraryBoundedRandom, suchThat)
