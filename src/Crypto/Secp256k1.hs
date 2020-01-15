@@ -84,6 +84,7 @@ import           Test.QuickCheck           (Arbitrary (..),
 import           Text.Read                 (Lexeme (String), lexP, parens,
                                             pfail, readPrec)
 
+import           Control.DeepSeq
 import           Crypto.Secp256k1.Internal
 
 newtype PubKey = PubKey (ForeignPtr PubKey64)
@@ -92,6 +93,24 @@ newtype Sig = Sig (ForeignPtr Sig64)
 newtype SecKey = SecKey (ForeignPtr SecKey32)
 newtype Tweak = Tweak (ForeignPtr Tweak32)
 newtype RecSig = RecSig (ForeignPtr RecSig65)
+
+instance NFData PubKey where
+    rnf (PubKey p) = p `seq` ()
+
+instance NFData Msg where
+    rnf (Msg p) = p `seq` ()
+
+instance NFData Sig where
+    rnf (Sig p) = p `seq` ()
+
+instance NFData SecKey where
+    rnf (SecKey p) = p `seq` ()
+
+instance NFData Tweak where
+    rnf (Tweak p) = p `seq` ()
+
+instance NFData RecSig where
+    rnf (RecSig p) = p `seq` ()
 
 decodeHex :: ConvertibleStrings a ByteString => a -> Maybe ByteString
 decodeHex str = if BS.null r then Just bs else Nothing where
