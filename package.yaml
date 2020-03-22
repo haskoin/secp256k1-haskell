@@ -30,6 +30,8 @@ library:
   when:
   - condition: flag(ecdh)
     cpp-options: -DECDH
+  - condition: flag(schnorr)
+    cpp-options: -DSCHNORR
 tests:
   spec:
     main: Spec.hs
@@ -45,5 +47,9 @@ tests:
 flags:
   ecdh:
     description: "Enable (experimental) ECDH APIs"
+    manual: true
+    default: false
+  schnorr:
+    description: "Enable BIP-340 (Schnorr) APIs"
     manual: true
     default: false
