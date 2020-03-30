@@ -392,6 +392,13 @@ foreign import ccall
     -> IO Ret
 
 foreign import ccall
+    "secp256k1.h secp256k1_ec_privkey_negate"
+    ecTweakNegate
+    :: Ptr Ctx
+    -> Ptr Tweak32
+    -> IO Ret
+
+foreign import ccall
     "secp256k1.h secp256k1_ec_pubkey_tweak_add"
     ecPubKeyTweakAdd
     :: Ptr Ctx
