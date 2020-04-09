@@ -52,6 +52,7 @@ spec = do
         it "add public key" $ property $ tweakAddPubKeyTest
         it "multiply public key" $ property $ tweakMulPubKeyTest
         it "combine public keys" $ property $ combinePubKeyTest
+        it "negates tweak" $ property $ negateTweakTest
 #ifdef ECDH
     describe "ecdh" $ do
         it "computes dh secret" $ property $ computeDhSecret
@@ -238,6 +239,18 @@ combinePubKeyTest =
         combinePubKeys [pub1, pub2, pub3]
     expected = importPubKey $ fst $ B16.decode $ B8.pack
         "043d9a7ec70011efc23c33a7e62d2ea73cca87797e3b659d93bea6aa871aebde56c3bc6134ca82e324b0ab9c0e601a6d2933afe7fb5d9f3aae900f5c5dc6e362c8"
+
+negateTweakTest :: Assertion
+negateTweakTest =
+    assertEqual "can recover secret key 1 after adding tweak 1" oneKey subtracted
+  where
+    Just oneKey = secKey $ fst $ B16.decode $ B8.pack
+        "0000000000000000000000000000000000000000000000000000000000000001"
+    Just oneTwk = tweak $ fst $ B16.decode $ B8.pack
+        "0000000000000000000000000000000000000000000000000000000000000001"
+    Just minusOneTwk = tweakNegate oneTwk
+    Just twoKey = tweakAddSecKey oneKey oneTwk
+    Just subtracted = tweakAddSecKey twoKey minusOneTwk
 
 #ifdef ECDH
 computeDhSecret :: Assertion

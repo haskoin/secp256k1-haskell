@@ -57,6 +57,7 @@ module Crypto.Secp256k1
     , tweakAddPubKey
     , tweakMulPubKey
     , combinePubKeys
+    , tweakNegate
 
 #ifdef ECDH
     -- * Diffie Hellman
@@ -479,6 +480,18 @@ recover (RecSig frg) (Msg fm) = withContext $ \ctx ->
         fp <- mallocForeignPtr
         ret <- withForeignPtr fp $ \pp -> ecdsaRecover ctx pp prg pm
         if isSuccess ret then return $ Just $ PubKey fp else return Nothing
+
+tweakNegate :: Tweak -> Maybe Tweak
+tweakNegate (Tweak fk) = withContext $ \ctx -> do
+    fnew <- mallocForeignPtr
+    peeked <- withForeignPtr fk peek
+    ret <- withForeignPtr fnew $ \n -> do
+        poke n peeked
+        ecTweakNegate ctx n
+    return $
+        if isSuccess ret
+            then Just (Tweak fnew)
+            else Nothing
 
 #ifdef ECDH
 -- | Compute Diffie-Hellman secret.
