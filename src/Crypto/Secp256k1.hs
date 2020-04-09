@@ -63,6 +63,21 @@ module Crypto.Secp256k1
     -- * Diffie Hellman
     , ecdh
 #endif
+
+#ifdef SCHNORR
+    , XOnlyPubKey
+    , SchnorrSig
+    , signMsgSchnorr
+    , exportSchnorrSig
+    , importSchnorrSig
+    , exportXOnlyPubKey
+    , importXOnlyPubKey
+    , verifyMsgSchnorr
+    , deriveXOnlyPubKey
+    , schnorrTweakAddPubKey
+    , schnorrTweakAddSecKey
+    , testTweakXOnlyPubKey
+#endif
     ) where
 
 import           Control.Monad             (replicateM, unless, (<=<))
@@ -79,6 +94,7 @@ import           Foreign                   (ForeignPtr, alloca, allocaArray,
                                             allocaBytes, mallocForeignPtr,
                                             nullFunPtr, nullPtr, peek, poke,
                                             pokeArray, withForeignPtr)
+import           Foreign.C                 (CInt)
 import           System.IO.Unsafe          (unsafePerformIO)
 import           Test.QuickCheck           (Arbitrary (..),
                                             arbitraryBoundedRandom, suchThat)
@@ -94,6 +110,10 @@ newtype Sig = Sig (ForeignPtr Sig64)
 newtype SecKey = SecKey (ForeignPtr SecKey32)
 newtype Tweak = Tweak (ForeignPtr Tweak32)
 newtype RecSig = RecSig (ForeignPtr RecSig65)
+#ifdef SCHNORR
+newtype XOnlyPubKey = XOnlyPubKey (ForeignPtr XOnlyPubKey64)
+newtype SchnorrSig = SchnorrSig (ForeignPtr SchnorrSig64)
+#endif
 
 instance NFData PubKey where
     rnf (PubKey p) = p `seq` ()
@@ -232,6 +252,50 @@ instance Eq SecKey where
 instance Eq Tweak where
     ft1 == ft2 = getTweak ft1 == getTweak ft2
 
+#ifdef SCHNORR
+instance NFData SchnorrSig where
+    rnf (SchnorrSig p) = p `seq` ()
+
+instance Show SchnorrSig where
+    showsPrec _ = shows . B16.encode . exportSchnorrSig
+
+instance Read SchnorrSig where
+    readPrec = parens $ do
+        String str <- lexP
+        maybe pfail return $ importSchnorrSig =<< decodeHex str
+
+instance Eq SchnorrSig where
+    fg1 == fg2 = exportSchnorrSig fg1 == exportSchnorrSig fg2
+
+instance IsString SchnorrSig where
+    fromString = fromMaybe e . (importSchnorrSig <=< decodeHex) where
+        e = error "Could not decode Schnorr signature from hex string"
+
+instance Hashable SchnorrSig where
+    i `hashWithSalt` s = i `hashWithSalt` exportSchnorrSig s
+
+instance NFData XOnlyPubKey where
+    rnf (XOnlyPubKey p) = p `seq` ()
+
+instance Show XOnlyPubKey where
+    showsPrec _ = shows . B16.encode . exportXOnlyPubKey
+
+instance Read XOnlyPubKey where
+    readPrec = do
+        String str <- lexP
+        maybe pfail return $ importXOnlyPubKey =<< decodeHex str
+
+instance Eq XOnlyPubKey where
+    fp1 == fp2 = getXOnlyPubKey fp1 == getXOnlyPubKey fp2
+
+instance IsString XOnlyPubKey where
+    fromString = fromMaybe e . (importXOnlyPubKey <=< decodeHex) where
+        e = error "Could not decode public key from hex string"
+
+instance Hashable XOnlyPubKey where
+    i `hashWithSalt` k = i `hashWithSalt` exportXOnlyPubKey k
+#endif
+
 -- | Import 32-byte 'ByteString' as 'Msg'.
 msg :: ByteString -> Maybe Msg
 msg bs
@@ -365,6 +429,7 @@ derivePubKey (SecKey fk) = withContext $ \ctx -> withForeignPtr fk $ \k -> do
     ret <- withForeignPtr fp $ \p -> ecPubKeyCreate ctx p k
     unless (isSuccess ret) $ error "could not compute public key"
     return $ PubKey fp
+
 
 -- | Add tweak to secret key.
 tweakAddSecKey :: SecKey -> Tweak -> Maybe SecKey
@@ -507,6 +572,102 @@ ecdh (PubKey pk) (SecKey sk) = withContext $ \ctx ->
     size = 32
 #endif
 
+#ifdef SCHNORR
+-- Get 64-byte x-only public key.
+getXOnlyPubKey :: XOnlyPubKey -> ByteString
+getXOnlyPubKey (XOnlyPubKey fp) =
+    fromShort $ getXOnlyPubKey64 $ unsafePerformIO $ withForeignPtr fp peek
+
+-- | Add tweak to public key. Tweak is multiplied first by G to obtain a point.
+schnorrTweakAddPubKey :: XOnlyPubKey -> Tweak -> Maybe (XOnlyPubKey, CInt)
+schnorrTweakAddPubKey (XOnlyPubKey fp) (Tweak ft) = withContext $ \ctx ->
+    withForeignPtr fp $ \p -> withForeignPtr ft $ \t -> alloca $ \is_negated -> do
+        fp' <- mallocForeignPtr
+        ret <- withForeignPtr fp' $ \p' -> do
+            pub <- peek p
+            poke p' pub
+            schnorrPubKeyTweakAdd ctx p' is_negated t
+        peeked_is_negated <- peek is_negated
+        if isSuccess ret then return $ Just $ (XOnlyPubKey fp', peeked_is_negated) else return Nothing
+
+-- | Add tweak to secret key.
+schnorrTweakAddSecKey :: SecKey -> Tweak -> Maybe SecKey
+schnorrTweakAddSecKey (SecKey fk) (Tweak ft) = withContext $ \ctx ->
+    withForeignPtr fk $ \k -> withForeignPtr ft $ \t -> do
+        fk' <- mallocForeignPtr
+        ret <- withForeignPtr fk' $ \k' ->  do
+            key <- peek k
+            poke k' key
+            schnorrSecKeyTweakAdd ctx k' t
+        if isSuccess ret then return $ Just $ SecKey fk' else return Nothing
+
+signMsgSchnorr :: SecKey -> Msg -> SchnorrSig
+signMsgSchnorr (SecKey fk) (Msg fm) = withContext $ \ctx ->
+    withForeignPtr fk $ \k -> withForeignPtr fm $ \m -> do
+        fg <- mallocForeignPtr
+        ret <- withForeignPtr fg $ \g -> schnorrSign ctx g m k nullFunPtr nullPtr
+        unless (isSuccess ret) $ error "could not schnorr-sign message"
+        return $ SchnorrSig fg
+
+exportSchnorrSig :: SchnorrSig -> ByteString
+exportSchnorrSig (SchnorrSig fg) = withContext $ \ctx ->
+    withForeignPtr fg $ \g -> allocaBytes 64 $ \o -> do
+        ret <- signatureSerializeSchnorr ctx o g
+        unless (isSuccess ret) $ error "could not serialize schnorr signature"
+        packByteString (o, 64)
+
+importXOnlyPubKey :: ByteString -> Maybe XOnlyPubKey
+importXOnlyPubKey bs
+    | BS.length bs == 32 = withContext $ \ctx -> do
+        fp <- mallocForeignPtr
+        ret <- withForeignPtr fp $ \pfp -> useByteString bs $ \(inp, _) ->
+            schnorrXOnlyPubKeyParse ctx pfp inp
+        if isSuccess ret
+            then return $ Just $ XOnlyPubKey fp
+            else return Nothing
+    | otherwise = Nothing
+
+importSchnorrSig :: ByteString -> Maybe SchnorrSig
+importSchnorrSig bs
+    | BS.length bs == 64 = withContext $ \ctx -> do
+        fp <- mallocForeignPtr
+        ret <- withForeignPtr fp $ \pfp -> useByteString bs $ \(inp, _) ->
+            schnorrSignatureParse ctx pfp inp
+        if isSuccess ret
+            then return $ Just $ SchnorrSig fp
+            else return Nothing
+    | otherwise = Nothing
+
+verifyMsgSchnorr :: XOnlyPubKey -> SchnorrSig -> Msg -> Bool
+verifyMsgSchnorr (XOnlyPubKey fp) (SchnorrSig fg) (Msg fm) = withContext $ \ctx ->
+    withForeignPtr fp $ \p -> withForeignPtr fg $ \g ->
+        withForeignPtr fm $ \m -> isSuccess <$> schnorrSignatureVerify ctx g m p
+
+exportXOnlyPubKey :: XOnlyPubKey -> ByteString
+exportXOnlyPubKey (XOnlyPubKey pub) = withContext $ \ctx ->
+    withForeignPtr pub $ \p -> allocaBytes 32 $ \o -> do
+        ret <- schnorrPubKeySerialize ctx o p
+        unless (isSuccess ret) $ error "could not serialize x-only public key"
+        packByteString (o, 32)
+
+deriveXOnlyPubKey :: SecKey -> XOnlyPubKey
+deriveXOnlyPubKey (SecKey fk) = withContext $ \ctx -> withForeignPtr fk $ \k -> do
+    fp <- mallocForeignPtr
+    ret <- withForeignPtr fp $ \p -> schnorrXOnlyPubKeyCreate ctx p k
+    unless (isSuccess ret) $ error "could not derive x-only public key"
+    return $ XOnlyPubKey fp
+
+testTweakXOnlyPubKey :: XOnlyPubKey -> CInt -> XOnlyPubKey -> Tweak -> Bool
+testTweakXOnlyPubKey (XOnlyPubKey fp) is_negated (XOnlyPubKey internal) (Tweak ft) =
+    withContext $ \ctx ->
+    withForeignPtr fp $ \p ->
+    withForeignPtr internal $ \internalp ->
+    withForeignPtr ft $ \t -> do
+        ret <- xOnlyPubKeyTweakTest ctx p is_negated internalp t
+        return $ isSuccess ret
+-- End of Schnorr block
+#endif
+
 instance Arbitrary Msg where
     arbitrary = gen_msg
       where
@@ -524,3 +685,10 @@ instance Arbitrary PubKey where
     arbitrary = do
         key <- arbitrary
         return $ derivePubKey key
+
+#ifdef SCHNORR
+instance Arbitrary XOnlyPubKey where
+    arbitrary = do
+        key <- arbitrary
+        return $ deriveXOnlyPubKey key
+#endif

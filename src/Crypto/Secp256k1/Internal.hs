@@ -81,6 +81,14 @@ newtype SerFlags = SerFlags { getSerFlags :: CUInt }
 newtype Ret = Ret { getRet :: CInt }
     deriving (Read, Show, Eq, Ord, Generic, NFData)
 
+#ifdef SCHNORR
+newtype XOnlyPubKey64 = XOnlyPubKey64 { getXOnlyPubKey64 :: ShortByteString }
+    deriving (Read, Show, Eq, Ord, Generic, NFData)
+
+newtype SchnorrSig64 = SchnorrSig64 { getSchnorrSig64 :: ShortByteString }
+    deriving (Read, Show, Eq, Ord, Generic, NFData)
+#endif
+
 -- | Nonce32-generating function
 type NonceFunction a
     =  Ptr Nonce32
@@ -112,6 +120,22 @@ useByteString bs f =
 
 packByteString :: (Ptr CUChar, CSize) -> IO ByteString
 packByteString (b, l) = BS.packCStringLen (castPtr b, fromIntegral l)
+
+#if SCHNORR
+instance Storable XOnlyPubKey64 where
+    sizeOf _ = 64
+    alignment _ = 1
+    peek p = XOnlyPubKey64 . toShort <$> packByteString (castPtr p, 64)
+    poke p (XOnlyPubKey64 k) = useByteString (fromShort k) $
+        \(b, _) -> copyArray (castPtr p) b 64
+
+instance Storable SchnorrSig64 where
+    sizeOf _ = 64
+    alignment _ = 1
+    peek p = SchnorrSig64 . toShort <$> packByteString (castPtr p, 64)
+    poke p (SchnorrSig64 k) = useByteString (fromShort k) $
+        \(b, _) -> copyArray (castPtr p) b 64
+#endif
 
 instance Storable PubKey64 where
     sizeOf _ = 64
@@ -483,6 +507,98 @@ foreign import ccall
     -> Ptr RecSig65
     -> Ptr Msg32
     -> IO Ret
+
+#ifdef SCHNORR
+foreign import ccall
+    "secp256k1.h secp256k1_xonly_pubkey_tweak_add"
+    schnorrPubKeyTweakAdd
+    :: Ptr Ctx
+    -> Ptr XOnlyPubKey64
+    -> Ptr CInt
+    -> Ptr Tweak32
+    -> IO Ret
+
+foreign import ccall
+    "secp256k1.h secp256k1_xonly_seckey_tweak_add"
+    schnorrSecKeyTweakAdd
+    :: Ptr Ctx
+    -> Ptr SecKey32
+    -> Ptr Tweak32
+    -> IO Ret
+
+foreign import ccall
+    "secp256k1.h secp256k1_schnorrsig_serialize"
+    signatureSerializeSchnorr
+    :: Ptr Ctx
+    -> Ptr CUChar -- ^ array for encoded signature, must be large enough
+    -> Ptr SchnorrSig64
+    -> IO Ret
+
+foreign import ccall
+    "secp256k1.h secp256k1_schnorrsig_sign"
+    schnorrSign
+    :: Ptr Ctx
+    -> Ptr SchnorrSig64
+    -> Ptr Msg32
+    -> Ptr SecKey32
+    -- TODO
+    -- This is actually an "extended nonce function" in the C code. So this signature is broken,
+    -- but we pass a nullFunPtr (and this module is Internal), so it doesn't matter right now.
+    -> FunPtr (NonceFunction a)
+    -> Ptr a -- ^ nonce data
+    -> IO Ret
+
+foreign import ccall
+    "secp256k1.h secp256k1_xonly_pubkey_tweak_test"
+    xOnlyPubKeyTweakTest
+    :: Ptr Ctx
+    -> Ptr XOnlyPubKey64 -- output_pubkey
+    -> CInt -- is_negated
+    -> Ptr XOnlyPubKey64 -- internal_pubkey
+    -> Ptr Tweak32
+    -> IO Ret
+
+foreign import ccall
+    "secp256k1.h secp256k1_xonly_pubkey_serialize"
+    schnorrPubKeySerialize
+    :: Ptr Ctx
+    -> Ptr CUChar -- 32 bytes output buffer
+    -> Ptr XOnlyPubKey64
+    -> IO Ret
+
+foreign import ccall
+    "secp256k1.h secp256k1_schnorrsig_verify"
+    schnorrSignatureVerify
+    :: Ptr Ctx
+    -> Ptr SchnorrSig64
+    -> Ptr Msg32
+    -> Ptr XOnlyPubKey64
+    -> IO Ret
+
+foreign import ccall
+    "secp256k1.h secp256k1_schnorrsig_parse"
+    schnorrSignatureParse
+    :: Ptr Ctx
+    -> Ptr SchnorrSig64 -- out
+    -> Ptr CUChar -- in
+    -> IO Ret
+
+foreign import ccall
+    "secp256k1.h secp256k1_xonly_pubkey_parse"
+    schnorrXOnlyPubKeyParse
+    :: Ptr Ctx
+    -> Ptr XOnlyPubKey64 -- out
+    -> Ptr CUChar -- in
+    -> IO Ret
+
+foreign import ccall
+    "secp256k1.h secp256k1_xonly_pubkey_create"
+    schnorrXOnlyPubKeyCreate
+    :: Ptr Ctx
+    -> Ptr XOnlyPubKey64
+    -> Ptr SecKey32
+    -> IO Ret
+#endif
 
 #ifdef ECDH
 foreign import ccall
