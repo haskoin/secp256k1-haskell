@@ -1,5 +1,5 @@
 name: secp256k1-haskell
-version: 0.1.8
+version: 0.2.0
 synopsis: Bindings for secp256k1 library from Bitcoin Core
 description: Sign and verify signatures using the very fast C secp256k1 library from Pieter Wuille. Has Haskell types and abstractions for keys and signatures.
 category: Crypto
@@ -32,6 +32,8 @@ library:
     cpp-options: -DECDH
   - condition: flag(schnorr)
     cpp-options: -DSCHNORR
+  - condition: flag(recovery)
+    cpp-options: -DRECOVERY
 tests:
   spec:
     main: Spec.hs
@@ -51,5 +53,9 @@ flags:
     default: false
   schnorr:
     description: "Enable BIP-340 (Schnorr) APIs"
+    manual: true
+    default: false
+  recovery:
+    description: "Enable signature key recovery APIs"
     manual: true
     default: false

@@ -221,7 +221,7 @@ signCtx = contextCreate sign >>= \c ->
 
 ecdsaSignTest :: Assertion
 ecdsaSignTest = do
-    (ret, sig) <- liftIO $ do
+    der <- liftIO $ do
         x <- signCtx
         alloca $ \s -> alloca $ \m -> alloca $ \k -> alloca $ \ol ->
             allocaBytes 72 $ \o -> do
@@ -232,22 +232,31 @@ ecdsaSignTest = do
                     -- TODO:
                     -- ecdsaSign x s m k nonce_function_default nullPtr
                     ecdsaSign x s m k nullFunPtr nullPtr
+                unless (isSuccess ret1) $ error "could not sign message"
                 ret2 <- ecdsaSignatureSerializeDer x o ol s
                 unless (isSuccess ret2) $ error "could not serialize signature"
                 len <- peek ol
-                sig <- packCStringLen (castPtr o, fromIntegral len)
-                return (ret1, sig)
-    assertBool "successful signing" $ isSuccess ret
-    assertEqual "signature matches" sig der
+                der <- packCStringLen (castPtr o, fromIntegral len)
+                return der
+    ret <- liftIO $ do
+        p <- alloca $ \p -> alloca $ \k -> do
+            poke k key
+            x <- signCtx
+            ret <- ecPubKeyCreate x p k
+            unless (isSuccess ret) $ error "failed to create public key"
+            return p
+        alloca $ \m -> alloca $ \s -> do
+            x <- contextCreate verify
+            sig <- parseDer x der
+            poke m msg
+            poke s sig
+            ecdsaVerify x s m p
+    assertBool "signature matches" (isSuccess ret)
   where
     msg = Msg32 $ toShort $ fst $ B16.decode
         "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
     key = SecKey32 $ toShort $ fst $ B16.decode
         "f65255094d7773ed8dd417badc9fc045c1f80fdc5b2d25172b031ce6933e039a"
-    der = fst $ B16.decode
-        "3045022100f502bfa07af43e7ef265618b0d929a7619ee01d6150e37eb6eaaf2c8bd37\
-        \fb2202206f0415ab0e9a977afd78b2c26ef39b3952096d319fd4b101c768ad6c132e30\
-        \45"
 
 ecSecKeyVerifyTest :: Assertion
 ecSecKeyVerifyTest = do
@@ -266,11 +275,12 @@ ecPubkeyCreateTest = do
         poke k key
         x <- signCtx
         ret <- ecPubKeyCreate x p k
+        unless (isSuccess ret) $ error "failed to create public key"
         allocaBytes 65 $ \o -> alloca $ \ol -> do
             poke ol 65
             rets <- ecPubKeySerialize
                 x o ol p uncompressed
-            unless (isSuccess rets) $ error "failed to serialive public key"
+            unless (isSuccess rets) $ error "failed to serialize public key"
             len <- fromIntegral <$> peek ol
             pk <- packCStringLen (castPtr o, len)
             return (ret, pk)

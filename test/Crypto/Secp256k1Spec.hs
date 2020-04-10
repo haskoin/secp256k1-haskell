@@ -17,18 +17,18 @@ spec :: Spec
 spec = do
     describe "signatures" $ do
         it "signs message" $ property $ signMsgTest
-        it "recovers key from signed message" $ property $ signRecMsgTest
         it "detects bad signature" $ property $ badSignatureTest
-        it "detects bad recoverable signature" $ property $ badRecSignatureTest
         it "normalizes signatures" $ property $ normalizeSigTest
+#ifdef RECOVERY
         it "recovers public keys" $ property $ recoverTest
-        it "Bad recover public keys" $ property $ badRecoverTest
+        it "recovers key from signed message" $ property $ signRecMsgTest
+        it "does not recover bad public keys" $ property $ badRecoverTest
+        it "detects bad recoverable signature" $ property $ badRecSignatureTest
+#endif
     describe "serialization" $ do
         it "serializes public key" $ property $ serializePubKeyTest
         it "serializes DER signature" $ property $ serializeSigTest
         it "serializes compact signature" $ property $ serializeCompactSigTest
-        it "serializes compact recoverable signature" $
-            property $ serializeCompactRecSigTest
         it "serialize secret key" $ property $ serializeSecKeyTest
         it "shows and reads public key" $
             property $ (showRead :: PubKey -> Bool)
@@ -38,15 +38,19 @@ spec = do
             property $ (showReadTweak :: SecKey -> Bool)
         it "shows and reads signature" $
             property $ (showReadSig :: (SecKey, Msg) -> Bool)
-        it "shows and reads recoverable signature" $
-            property $ (showReadRecSig :: (SecKey, Msg) -> Bool)
         it "shows and reads message" $ property $ (showRead :: Msg -> Bool)
         it "reads public key from string" $ property $ isStringPubKey
         it "reads secret key from string" $ property $ isStringSecKey
         it "reads signature from string" $ property $ isStringSig
-        it "reads recoverable signature from string" $ property $ isStringRecSig
         it "reads message from string" $ property $ isStringMsg
         it "reads tweak from string" $ property $ isStringTweak
+#ifdef RECOVERY
+        it "serializes compact recoverable signature" $
+            property $ serializeCompactRecSigTest
+        it "shows and reads recoverable signature" $
+            property $ (showReadRecSig :: (SecKey, Msg) -> Bool)
+        it "reads recoverable signature from string" $ property $ isStringRecSig
+#endif
     describe "tweaks" $ do
         it "add secret key" $ property $ tweakAddSecKeyTest
         it "multiply secret key" $ property $ tweakMulSecKeyTest
@@ -90,10 +94,12 @@ isStringSig (k, m) = g == fromString (cs hex) where
     g = signMsg k m
     hex = B16.encode $ exportSig g
 
+#ifdef RECOVERY
 isStringRecSig :: (SecKey, Msg) -> Bool
 isStringRecSig (k, m) = g == fromString (cs hex) where
     g = signRecMsg k m
     hex = B16.encode . encode $ exportCompactRecSig g
+#endif
 
 isStringMsg :: Msg -> Bool
 isStringMsg m = m == fromString (cs m') where
@@ -117,9 +123,11 @@ showReadSig :: (SecKey, Msg) -> Bool
 showReadSig (k, m) = showRead sig where
     sig = signMsg k m
 
+#ifdef RECOVERY
 showReadRecSig :: (SecKey, Msg) -> Bool
 showReadRecSig (k, m) = showRead recSig where
     recSig = signRecMsg k m
+#endif
 
 showRead :: (Show a, Read a, Eq a) => a -> Bool
 showRead x = read (show x) == x
@@ -129,6 +137,7 @@ signMsgTest (fm, fk) = verifySig fp fg fm where
     fp = derivePubKey fk
     fg = signMsg fk fm
 
+#ifdef RECOVERY
 signRecMsgTest :: (Msg, SecKey) -> Bool
 signRecMsgTest (fm, fk) = verifySig fp fg fm where
     fp = derivePubKey fk
@@ -146,14 +155,17 @@ badRecoverTest (fm, fk, fm') =
     fg  = signRecMsg fk fm
     fp  = derivePubKey fk
     fp' = recover fg fm'
+#endif
 
 badSignatureTest :: (Msg, SecKey, PubKey) -> Bool
 badSignatureTest (fm, fk, fp) = not $ verifySig fp fg fm where
     fg = signMsg fk fm
 
+#ifdef RECOVERY
 badRecSignatureTest :: (Msg, SecKey, PubKey) -> Bool
 badRecSignatureTest (fm, fk, fp) = not $ verifySig fp fg fm where
     fg = convertRecSig $ signRecMsg fk fm
+#endif
 
 normalizeSigTest :: (Msg, SecKey) -> Bool
 normalizeSigTest (fm, fk) = not norm && sig == fg where
@@ -182,6 +194,7 @@ serializeCompactSigTest (fm, fk) =
   where
     fg = signMsg fk fm
 
+#ifdef RECOVERY
 serializeCompactRecSigTest :: (Msg, SecKey) -> Bool
 serializeCompactRecSigTest (fm, fk) =
     case importCompactRecSig $ exportCompactRecSig fg of
@@ -189,6 +202,7 @@ serializeCompactRecSigTest (fm, fk) =
         Nothing  -> False
   where
     fg = signRecMsg fk fm
+#endif
 
 serializeSecKeyTest :: SecKey -> Bool
 serializeSecKeyTest fk =

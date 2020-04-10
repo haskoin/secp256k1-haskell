@@ -3,8 +3,8 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-|
 Module      : Crypto.Secp256k1
-License     : MIT
-Maintainer  : Jean-Pierre Rupp <root@haskoin.com>
+License     : UNLICENSE
+Maintainer  : Jean-Pierre Rupp <jprupp@protonmail.ch>
 Stability   : experimental
 Portability : POSIX
 
@@ -39,7 +39,8 @@ module Crypto.Secp256k1
     , CompactSig(..)
     , exportCompactSig
     , importCompactSig
-    -- * Recoverable
+#ifdef RECOVERY
+    -- ** Recovery
     , RecSig
     , CompactRecSig(..)
     , importCompactRecSig
@@ -47,6 +48,7 @@ module Crypto.Secp256k1
     , convertRecSig
     , signRecMsg
     , recover
+#endif
 
     -- * Addition & Multiplication
     , Tweak
@@ -182,6 +184,7 @@ instance Hashable Sig where
 instance Show Sig where
     showsPrec _ = shows . B16.encode . exportSig
 
+#ifdef RECOVERY
 recSigFromString :: String -> Maybe RecSig
 recSigFromString str = do
     bs <- decodeHex str
@@ -203,6 +206,7 @@ instance IsString RecSig where
 
 instance Show RecSig where
     showsPrec _ = shows . B16.encode . encode . exportCompactRecSig
+#endif
 
 instance Read SecKey where
     readPrec = parens $ do
@@ -243,8 +247,10 @@ instance Eq Msg where
 instance Eq Sig where
     fg1 == fg2 = exportCompactSig fg1 == exportCompactSig fg2
 
+#ifdef RECOVERY
 instance Eq RecSig where
     fg1 == fg2 = exportCompactRecSig fg1 == exportCompactRecSig fg2
+#endif
 
 instance Eq SecKey where
     fk1 == fk2 = getSecKey fk1 == getSecKey fk2
@@ -492,6 +498,7 @@ combinePubKeys pubs = withContext $ \ctx -> pointers [] pubs $ \ps ->
     pointers ps (PubKey fp : pubs') f =
         withForeignPtr fp $ \p -> pointers (p:ps) pubs' f
 
+#ifdef RECOVERY
 -- | Parse a compact ECDSA signature (64 bytes + recovery id).
 importCompactRecSig :: CompactRecSig -> Maybe RecSig
 importCompactRecSig cr =
@@ -545,6 +552,7 @@ recover (RecSig frg) (Msg fm) = withContext $ \ctx ->
         fp <- mallocForeignPtr
         ret <- withForeignPtr fp $ \pp -> ecdsaRecover ctx pp prg pm
         if isSuccess ret then return $ Just $ PubKey fp else return Nothing
+#endif
 
 tweakNegate :: Tweak -> Maybe Tweak
 tweakNegate (Tweak fk) = withContext $ \ctx -> do
