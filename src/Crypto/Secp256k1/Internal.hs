@@ -14,19 +14,23 @@ exposed for hacking and experimentation.
 -}
 module Crypto.Secp256k1.Internal where
 
-import           Control.DeepSeq
-import           Control.Monad
+import           Control.DeepSeq       (NFData)
+import           Control.Monad         (guard, unless)
 import           Data.ByteString       (ByteString)
 import qualified Data.ByteString       as BS
 import           Data.ByteString.Short (ShortByteString, fromShort, toShort)
 import           Data.Serialize        (Serialize (..))
 import qualified Data.Serialize.Get    as Get
 import qualified Data.Serialize.Put    as Put
-import           Foreign
-import           Foreign.C
+import           Data.Void             (Void)
+import           Foreign               (ForeignPtr, FunPtr, Ptr, Storable (..),
+                                        alloca, castPtr, copyArray,
+                                        newForeignPtr, withForeignPtr)
+import           Foreign.C             (CInt (..), CSize (..), CString, CUChar,
+                                        CUInt (..))
 import           GHC.Generics          (Generic)
-import           System.Entropy
-import           System.IO.Unsafe
+import           System.Entropy        (getEntropy)
+import           System.IO.Unsafe      (unsafeDupablePerformIO, unsafePerformIO)
 
 data Ctx = Ctx
 
@@ -91,16 +95,6 @@ newtype SchnorrSig64 = SchnorrSig64 { getSchnorrSig64 :: ShortByteString }
     deriving (Read, Show, Eq, Ord, Generic, NFData)
 #endif
 
--- | Nonce32-generating function
-type NonceFunction a
-    =  Ptr Nonce32
-    -> Ptr Msg32
-    -> Ptr SecKey32
-    -> Ptr Algo16
-    -> Ptr a       -- ^ extra data
-    -> CUInt       -- ^ attempt
-    -> Ret
-
 verify :: CtxFlags
 verify = CtxFlags 0x0101
 
@@ -158,27 +152,27 @@ instance Storable CompactSig where
     alignment _ = 1
     peek p = do
         bs <- BS.packCStringLen (castPtr p, 64)
-        let (s, r) = BS.splitAt 32 bs
-        guard $ BS.length s == 32
+        let (r, s) = BS.splitAt 32 bs
         guard $ BS.length r == 32
+        guard $ BS.length s == 32
         return CompactSig { getCompactSigR = toShort r
                           , getCompactSigS = toShort s
                           }
     poke p CompactSig{..} =
         useByteString bs $ \(b, _) -> copyArray (castPtr p) b 64
       where
-        bs = fromShort getCompactSigS `BS.append` fromShort getCompactSigR
+        bs = fromShort getCompactSigR `BS.append` fromShort getCompactSigS
 
 instance Serialize CompactSig where
     get = do
-        s <- Get.getByteString 32
         r <- Get.getByteString 32
+        s <- Get.getByteString 32
         return CompactSig { getCompactSigR = toShort r
                           , getCompactSigS = toShort s
                           }
     put (CompactSig r s) = do
-        Put.putShortByteString s
         Put.putShortByteString r
+        Put.putShortByteString s
 
 #ifdef RECOVERY
 instance Storable RecSig65 where
@@ -193,7 +187,7 @@ instance Storable CompactRecSig where
     alignment _ = 1
     peek p = do
         bs <- BS.packCStringLen (castPtr p, 65)
-        let (s, r) = BS.splitAt 32 $ BS.take 64 bs
+        let (r, s) = BS.splitAt 32 $ BS.take 64 bs
             v = BS.last bs
         return CompactRecSig { getCompactRecSigR = toShort r
                              , getCompactRecSigS = toShort s
@@ -202,22 +196,22 @@ instance Storable CompactRecSig where
     poke p CompactRecSig{..} =
         useByteString bs $ \(b, _) -> copyArray (castPtr p) b 65
       where
-        bs = fromShort getCompactRecSigS `BS.append`
-             fromShort getCompactRecSigR `BS.snoc`
+        bs = fromShort getCompactRecSigR `BS.append`
+             fromShort getCompactRecSigS `BS.snoc`
              getCompactRecSigV
 
 instance Serialize CompactRecSig where
     get = do
-        s <- Get.getByteString 32
         r <- Get.getByteString 32
+        s <- Get.getByteString 32
         v <- Get.getWord8
         return CompactRecSig { getCompactRecSigR = toShort r
                              , getCompactRecSigS = toShort s
                              , getCompactRecSigV = v
                              }
     put (CompactRecSig r s v) = do
-        Put.putShortByteString s
         Put.putShortByteString r
+        Put.putShortByteString s
         Put.putWord8 v
 #endif
 
@@ -392,7 +386,7 @@ foreign import ccall
     -> Ptr Sig64
     -> Ptr Msg32
     -> Ptr SecKey32
-    -> FunPtr (NonceFunction a)
+    -> Ptr Void
     -> Ptr a -- ^ nonce data
     -> IO Ret
 
@@ -500,7 +494,7 @@ foreign import ccall
     -> Ptr RecSig65
     -> Ptr Msg32
     -> Ptr SecKey32
-    -> FunPtr (NonceFunction a)
+    -> Ptr Void
     -> Ptr a -- ^ nonce data
     -> IO Ret
 
@@ -550,7 +544,7 @@ foreign import ccall
     -- TODO
     -- This is actually an "extended nonce function" in the C code. So this signature is broken,
     -- but we pass a nullFunPtr (and this module is Internal), so it doesn't matter right now.
-    -> FunPtr (NonceFunction a)
+    -> Ptr Void
     -> Ptr a -- ^ nonce data
     -> IO Ret
 

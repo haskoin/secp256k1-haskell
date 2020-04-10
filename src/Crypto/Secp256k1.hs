@@ -89,14 +89,12 @@ import qualified Data.ByteString.Base16    as B16
 import           Data.ByteString.Short     (fromShort, toShort)
 import           Data.Hashable             (Hashable (..))
 import           Data.Maybe                (fromJust, fromMaybe, isJust)
-import           Data.Serialize            (decode, encode)
 import           Data.String               (IsString (..))
 import           Data.String.Conversions   (ConvertibleStrings, cs)
 import           Foreign                   (ForeignPtr, alloca, allocaArray,
                                             allocaBytes, mallocForeignPtr,
-                                            nullFunPtr, nullPtr, peek, poke,
-                                            pokeArray, withForeignPtr)
-import           Foreign.C                 (CInt)
+                                            nullPtr, peek, poke, pokeArray,
+                                            withForeignPtr)
 import           System.IO.Unsafe          (unsafePerformIO)
 import           Test.QuickCheck           (Arbitrary (..),
                                             arbitraryBoundedRandom, suchThat)
@@ -425,7 +423,7 @@ signMsg :: SecKey -> Msg -> Sig
 signMsg (SecKey fk) (Msg fm) = withContext $ \ctx ->
     withForeignPtr fk $ \k -> withForeignPtr fm $ \m -> do
         fg <- mallocForeignPtr
-        ret <- withForeignPtr fg $ \g -> ecdsaSign ctx g m k nullFunPtr nullPtr
+        ret <- withForeignPtr fg $ \g -> ecdsaSign ctx g m k nullPtr nullPtr
         unless (isSuccess ret) $ error "could not sign message"
         return $ Sig fg
 

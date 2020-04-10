@@ -229,9 +229,7 @@ ecdsaSignTest = do
                 poke m msg
                 poke k key
                 ret1 <-
-                    -- TODO:
-                    -- ecdsaSign x s m k nonce_function_default nullPtr
-                    ecdsaSign x s m k nullFunPtr nullPtr
+                    ecdsaSign x s m k nullPtr nullPtr
                 unless (isSuccess ret1) $ error "could not sign message"
                 ret2 <- ecdsaSignatureSerializeDer x o ol s
                 unless (isSuccess ret2) $ error "could not serialize signature"
@@ -247,9 +245,9 @@ ecdsaSignTest = do
             return p
         alloca $ \m -> alloca $ \s -> do
             x <- contextCreate verify
-            sig <- parseDer x der
+            g <- parseDer x der
             poke m msg
-            poke s sig
+            poke s g
             ecdsaVerify x s m p
     assertBool "signature matches" (isSuccess ret)
   where
@@ -257,6 +255,7 @@ ecdsaSignTest = do
         "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
     key = SecKey32 $ toShort $ fst $ B16.decode
         "f65255094d7773ed8dd417badc9fc045c1f80fdc5b2d25172b031ce6933e039a"
+
 
 ecSecKeyVerifyTest :: Assertion
 ecSecKeyVerifyTest = do
