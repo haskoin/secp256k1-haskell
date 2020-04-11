@@ -482,15 +482,18 @@ tweakMulPubKey (PubKey fp) (Tweak ft) = withContext $ \ctx ->
 
 -- | Add multiple public keys together.
 combinePubKeys :: [PubKey] -> Maybe PubKey
-combinePubKeys pubs = withContext $ \ctx -> pointers [] pubs $ \ps ->
-    allocaArray (length ps) $ \a -> do
-        pokeArray a ps
-        fp <- mallocForeignPtr
-        ret <- withForeignPtr fp $ \p ->
-            ecPubKeyCombine ctx p a (fromIntegral $ length ps)
-        if isSuccess ret
-            then return $ Just $ PubKey fp
-            else return Nothing
+combinePubKeys pubs = withContext $ \ctx ->
+    if pubs == []
+        then return Nothing
+        else pointers [] pubs $ \ps ->
+            allocaArray (length ps) $ \a -> do
+                pokeArray a ps
+                fp <- mallocForeignPtr
+                ret <- withForeignPtr fp $ \p ->
+                    ecPubKeyCombine ctx p a (fromIntegral $ length ps)
+                if isSuccess ret
+                    then return $ Just $ PubKey fp
+                    else return Nothing
   where
     pointers ps [] f = f ps
     pointers ps (PubKey fp : pubs') f =
