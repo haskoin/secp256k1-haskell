@@ -57,6 +57,7 @@ spec = do
         it "add public key" $ property $ tweakAddPubKeyTest
         it "multiply public key" $ property $ tweakMulPubKeyTest
         it "combine public keys" $ property $ combinePubKeyTest
+        it "can't combine 0 public keys" $ property $ combinePubKeyEmptyListTest
         it "negates tweak" $ property $ negateTweakTest
 #ifdef ECDH
     describe "ecdh" $ do
@@ -276,6 +277,13 @@ combinePubKeyTest =
         combinePubKeys [pub1, pub2, pub3]
     expected = importPubKey $ hexToBytes
         "043d9a7ec70011efc23c33a7e62d2ea73cca87797e3b659d93bea6aa871aebde56c3bc6134ca82e324b0ab9c0e601a6d2933afe7fb5d9f3aae900f5c5dc6e362c8"
+
+combinePubKeyEmptyListTest :: Assertion
+combinePubKeyEmptyListTest =
+    assertEqual "empty pubkey list must return Nothing" expected combined
+  where
+    expected = Nothing
+    combined = combinePubKeys []
 
 negateTweakTest :: Assertion
 negateTweakTest =
