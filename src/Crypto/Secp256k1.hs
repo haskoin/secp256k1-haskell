@@ -59,7 +59,9 @@ module Crypto.Secp256k1
     , tweakAddPubKey
     , tweakMulPubKey
     , combinePubKeys
+#ifdef NEGATE
     , tweakNegate
+#endif
 
 #ifdef ECDH
     -- * Diffie Hellman
@@ -89,12 +91,15 @@ import qualified Data.ByteString.Base16    as B16
 import           Data.ByteString.Short     (fromShort, toShort)
 import           Data.Hashable             (Hashable (..))
 import           Data.Maybe                (fromJust, fromMaybe, isJust)
+import           Data.Serialize            (decode, encode)
 import           Data.String               (IsString (..))
 import           Data.String.Conversions   (ConvertibleStrings, cs)
-import           Foreign                   (ForeignPtr, alloca, allocaArray,
-                                            allocaBytes, mallocForeignPtr,
+import           Foreign                   (ForeignPtr, alloca,
+                                            allocaArray, allocaBytes,
+                                            mallocForeignPtr, 
                                             nullPtr, peek, poke, pokeArray,
                                             withForeignPtr)
+import           Foreign.C.Types           (CInt)
 import           System.IO.Unsafe          (unsafePerformIO)
 import           Test.QuickCheck           (Arbitrary (..),
                                             arbitraryBoundedRandom, suchThat)
@@ -542,7 +547,7 @@ signRecMsg (SecKey fk) (Msg fm) = withContext $ \ctx ->
     withForeignPtr fk $ \k -> withForeignPtr fm $ \m -> do
         fg <- mallocForeignPtr
         ret <- withForeignPtr fg $ \g ->
-            ecdsaSignRecoverable ctx g m k nullFunPtr nullPtr
+            ecdsaSignRecoverable ctx g m k nullPtr nullPtr
         unless (isSuccess ret) $ error "could not sign message"
         return $ RecSig fg
 
@@ -555,6 +560,7 @@ recover (RecSig frg) (Msg fm) = withContext $ \ctx ->
         if isSuccess ret then return $ Just $ PubKey fp else return Nothing
 #endif
 
+#ifdef NEGATE
 tweakNegate :: Tweak -> Maybe Tweak
 tweakNegate (Tweak fk) = withContext $ \ctx -> do
     fnew <- mallocForeignPtr
@@ -566,6 +572,7 @@ tweakNegate (Tweak fk) = withContext $ \ctx -> do
         if isSuccess ret
             then Just (Tweak fnew)
             else Nothing
+#endif
 
 #ifdef ECDH
 -- | Compute Diffie-Hellman secret.
@@ -611,10 +618,14 @@ schnorrTweakAddSecKey (SecKey fk) (Tweak ft) = withContext $ \ctx ->
         if isSuccess ret then return $ Just $ SecKey fk' else return Nothing
 
 signMsgSchnorr :: SecKey -> Msg -> SchnorrSig
-signMsgSchnorr (SecKey fk) (Msg fm) = withContext $ \ctx ->
-    withForeignPtr fk $ \k -> withForeignPtr fm $ \m -> do
+signMsgSchnorr (SecKey fk) (Msg fm) =
+  withContext $ \ctx ->
+    withForeignPtr fk $ \k ->
+      withForeignPtr fm $ \m -> do
         fg <- mallocForeignPtr
-        ret <- withForeignPtr fg $ \g -> schnorrSign ctx g m k nullFunPtr nullPtr
+        ret <-
+          withForeignPtr fg $ \g ->
+            schnorrSign ctx g m k nullPtr nullPtr
         unless (isSuccess ret) $ error "could not schnorr-sign message"
         return $ SchnorrSig fg
 

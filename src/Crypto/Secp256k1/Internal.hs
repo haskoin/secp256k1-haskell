@@ -23,6 +23,7 @@ import           Data.Serialize        (Serialize (..))
 import qualified Data.Serialize.Get    as Get
 import qualified Data.Serialize.Put    as Put
 import           Data.Void             (Void)
+import           Data.Word             (Word8)
 import           Foreign               (ForeignPtr, FunPtr, Ptr, Storable (..),
                                         alloca, castPtr, copyArray,
                                         newForeignPtr, withForeignPtr)
@@ -413,12 +414,14 @@ foreign import ccall
     -> Ptr Tweak32
     -> IO Ret
 
+#ifdef NEGATE
 foreign import ccall
     "secp256k1.h secp256k1_ec_privkey_negate"
     ecTweakNegate
     :: Ptr Ctx
     -> Ptr Tweak32
     -> IO Ret
+#endif
 
 foreign import ccall
     "secp256k1.h secp256k1_ec_pubkey_tweak_add"

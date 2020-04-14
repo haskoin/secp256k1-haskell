@@ -6,12 +6,11 @@ import qualified Data.ByteString         as BS
 import qualified Data.ByteString.Base16  as B16
 import qualified Data.ByteString.Char8   as B8
 import           Data.Maybe              (fromMaybe)
-import           Data.Serialize
 import           Data.String             (fromString)
 import           Data.String.Conversions (cs)
 import           Test.Hspec
 import           Test.HUnit              (Assertion, assertEqual)
-import           Test.QuickCheck         (Property, property, (==>))
+import           Test.QuickCheck         (property)
 
 spec :: Spec
 spec = do
@@ -58,7 +57,9 @@ spec = do
         it "multiply public key" $ property $ tweakMulPubKeyTest
         it "combine public keys" $ property $ combinePubKeyTest
         it "can't combine 0 public keys" $ property $ combinePubKeyEmptyListTest
+#ifdef NEGATE
         it "negates tweak" $ property $ negateTweakTest
+#endif
 #ifdef ECDH
     describe "ecdh" $ do
         it "computes dh secret" $ property $ computeDhSecret
@@ -285,6 +286,7 @@ combinePubKeyEmptyListTest =
     expected = Nothing
     combined = combinePubKeys []
 
+#ifdef NEGATE
 negateTweakTest :: Assertion
 negateTweakTest =
     assertEqual "can recover secret key 1 after adding tweak 1" oneKey subtracted
@@ -296,6 +298,7 @@ negateTweakTest =
     Just minusOneTwk = tweakNegate oneTwk
     Just twoKey = tweakAddSecKey oneKey oneTwk
     Just subtracted = tweakAddSecKey twoKey minusOneTwk
+#endif
 
 #ifdef ECDH
 computeDhSecret :: Assertion
