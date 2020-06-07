@@ -1,5 +1,5 @@
 name: secp256k1-haskell
-version: 0.2.2
+version: 0.2.3
 synopsis: Bindings for secp256k1 library from Bitcoin Core
 description: Sign and verify signatures using the very fast C secp256k1 library from Pieter Wuille. Has Haskell types and abstractions for keys and signatures.
 category: Crypto
@@ -23,11 +23,7 @@ dependencies:
   - hashable
   - QuickCheck
   - string-conversions
-library:
-  source-dirs: src
-  pkg-config-dependencies:
-    - libsecp256k1
-  when:
+when:
   - condition: flag(ecdh)
     cpp-options: -DECDH
   - condition: flag(schnorr)
@@ -36,16 +32,25 @@ library:
     cpp-options: -DRECOVERY
   - condition: flag(negate)
     cpp-options: -DNEGATE
+library:
+  source-dirs: src
+  pkg-config-dependencies:
+    - libsecp256k1
 tests:
   spec:
     main: Spec.hs
     source-dirs: test
+    ghc-options:
+      - -threaded
+      - -rtsopts
+      - -with-rtsopts=-N
     verbatim:
       build-tool-depends:
           hspec-discover:hspec-discover
     dependencies:
       - hspec
       - secp256k1-haskell
+      - monad-par
       - mtl
       - HUnit
 flags:

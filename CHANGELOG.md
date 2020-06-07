@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## 0.2.3
+### Changed
+- Return meaningful error upon encountering weird ret status from upstream code.
+
+### Added
+- Test parallel signature creation and verification.
+
 ## 0.2.2
 ### Removed
 - Hide tweak negation behind a flag for compatibilidy with Debian 9.

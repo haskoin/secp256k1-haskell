@@ -219,6 +219,12 @@ signCtx = contextCreate sign >>= \c ->
     withEntropy (contextRandomize c) >>= \r ->
         unless (isSuccess r) (error "failed to randomize context") >> return c
 
+createPubKey :: Ptr Ctx -> Ptr SecKey32 -> Ptr PubKey64 -> SecKey32 -> IO ()
+createPubKey x k p key = do
+    poke k key
+    ret <- ecPubKeyCreate x p k
+    unless (isSuccess ret) $ error "failed to create public key"
+
 ecdsaSignTest :: Assertion
 ecdsaSignTest = do
     der <- liftIO $ do
@@ -234,14 +240,11 @@ ecdsaSignTest = do
                 ret2 <- ecdsaSignatureSerializeDer x o ol s
                 unless (isSuccess ret2) $ error "could not serialize signature"
                 len <- peek ol
-                der <- packCStringLen (castPtr o, fromIntegral len)
-                return der
+                packCStringLen (castPtr o, fromIntegral len)
     ret <- liftIO $ do
         p <- alloca $ \p -> alloca $ \k -> do
-            poke k key
             x <- signCtx
-            ret <- ecPubKeyCreate x p k
-            unless (isSuccess ret) $ error "failed to create public key"
+            createPubKey x k p key
             return p
         alloca $ \m -> alloca $ \s -> do
             x <- contextCreate verify
@@ -270,20 +273,16 @@ ecSecKeyVerifyTest = do
 
 ecPubkeyCreateTest :: Assertion
 ecPubkeyCreateTest = do
-    (ret, pk) <- liftIO $ alloca $ \p -> alloca $ \k -> do
-        poke k key
+    pk <- liftIO $ alloca $ \p -> alloca $ \k -> do
         x <- signCtx
-        ret <- ecPubKeyCreate x p k
-        unless (isSuccess ret) $ error "failed to create public key"
+        createPubKey x k p key
         allocaBytes 65 $ \o -> alloca $ \ol -> do
             poke ol 65
             rets <- ecPubKeySerialize
                 x o ol p uncompressed
             unless (isSuccess rets) $ error "failed to serialize public key"
             len <- fromIntegral <$> peek ol
-            pk <- packCStringLen (castPtr o, len)
-            return (ret, pk)
-    assertBool "successful pubkey creation" $ isSuccess ret
+            packCStringLen (castPtr o, len)
     assertEqual "public key matches" pub pk
   where
     key = SecKey32 $ toShort $ fst $ B16.decode

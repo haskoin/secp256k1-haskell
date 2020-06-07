@@ -261,7 +261,7 @@ instance Storable Algo16 where
 isSuccess :: Ret -> Bool
 isSuccess (Ret 0) = False
 isSuccess (Ret 1) = True
-isSuccess _       = undefined
+isSuccess (Ret n) = error $ "isSuccess expected 0 or 1 but got " <> show n
 
 {-# NOINLINE fctx #-}
 fctx :: ForeignPtr Ctx

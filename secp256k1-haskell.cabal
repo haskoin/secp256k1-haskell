@@ -1,13 +1,13 @@
 cabal-version: 1.12
 
--- This file has been generated from package.yaml by hpack version 0.31.2.
+-- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 0b75b1185f390c0f03f09dfc8e18349a5bce92770b10888fc121279d4fa9953f
+-- hash: 16aee2fed95caee7ec390abc8e88433479bf9a3c51dc68b00b1d5eaaebe5b5a1
 
 name:           secp256k1-haskell
-version:        0.2.2
+version:        0.2.3
 synopsis:       Bindings for secp256k1 library from Bitcoin Core
 description:    Sign and verify signatures using the very fast C secp256k1 library from Pieter Wuille. Has Haskell types and abstractions for keys and signatures.
 category:       Crypto
@@ -86,6 +86,7 @@ test-suite spec
       Paths_secp256k1_haskell
   hs-source-dirs:
       test
+  ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       HUnit
     , QuickCheck
@@ -97,8 +98,17 @@ test-suite spec
     , entropy
     , hashable
     , hspec
+    , monad-par
     , mtl
     , secp256k1-haskell
     , string-conversions
+  if flag(ecdh)
+    cpp-options: -DECDH
+  if flag(schnorr)
+    cpp-options: -DSCHNORR
+  if flag(recovery)
+    cpp-options: -DRECOVERY
+  if flag(negate)
+    cpp-options: -DNEGATE
   default-language: Haskell2010
   build-tool-depends: hspec-discover:hspec-discover

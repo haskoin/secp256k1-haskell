@@ -1,87 +1,112 @@
 {-# LANGUAGE CPP #-}
 module Crypto.Secp256k1Spec (spec) where
 
+import qualified Control.Monad.Par       as P
 import           Crypto.Secp256k1
 import qualified Data.ByteString         as BS
 import qualified Data.ByteString.Base16  as B16
 import qualified Data.ByteString.Char8   as B8
 import           Data.Maybe              (fromMaybe)
+import qualified Data.Serialize          as S
 import           Data.String             (fromString)
 import           Data.String.Conversions (cs)
 import           Test.Hspec
 import           Test.HUnit              (Assertion, assertEqual)
-import           Test.QuickCheck         (property)
+import           Test.QuickCheck
 
 spec :: Spec
 spec = do
     describe "signatures" $ do
-        it "signs message" $ property $ signMsgTest
-        it "detects bad signature" $ property $ badSignatureTest
-        it "normalizes signatures" $ property $ normalizeSigTest
-#ifdef RECOVERY
-        it "recovers public keys" $ property $ recoverTest
-        it "recovers key from signed message" $ property $ signRecMsgTest
-        it "does not recover bad public keys" $ property $ badRecoverTest
-        it "detects bad recoverable signature" $ property $ badRecSignatureTest
-#endif
+        it "signs message" $
+            property signMsgTest
+        it "signs messages in parallel" $
+            property signMsgParTest
+        it "detects bad signature" $
+            property badSignatureTest
+        it "normalizes signatures" $
+            property normalizeSigTest
     describe "serialization" $ do
-        it "serializes public key" $ property $ serializePubKeyTest
-        it "serializes DER signature" $ property $ serializeSigTest
-        it "serializes compact signature" $ property $ serializeCompactSigTest
-        it "serialize secret key" $ property $ serializeSecKeyTest
+        it "serializes public key" $
+            property serializePubKeyTest
+        it "serializes DER signature" $
+            property serializeSigTest
+        it "serializes compact signature" $
+            property serializeCompactSigTest
+        it "serialize secret key" $
+            property serializeSecKeyTest
         it "shows and reads public key" $
-            property $ (showRead :: PubKey -> Bool)
+            property (showRead :: PubKey -> Bool)
         it "shows and reads secret key" $
-            property $ (showRead :: SecKey -> Bool)
+            property (showRead :: SecKey -> Bool)
         it "shows and reads tweak" $
-            property $ (showReadTweak :: SecKey -> Bool)
+            property (showReadTweak :: SecKey -> Bool)
         it "shows and reads signature" $
-            property $ (showReadSig :: (SecKey, Msg) -> Bool)
-        it "shows and reads message" $ property $ (showRead :: Msg -> Bool)
-        it "reads public key from string" $ property $ isStringPubKey
-        it "reads secret key from string" $ property $ isStringSecKey
-        it "reads signature from string" $ property $ isStringSig
-        it "reads message from string" $ property $ isStringMsg
-        it "reads tweak from string" $ property $ isStringTweak
+            property (showReadSig :: (SecKey, Msg) -> Bool)
+        it "shows and reads message" $
+            property (showRead :: Msg -> Bool)
+        it "reads public key from string" $
+            property isStringPubKey
+        it "reads secret key from string" $
+            property isStringSecKey
+        it "reads signature from string" $
+            property isStringSig
+        it "reads message from string" $
+            property isStringMsg
+        it "reads tweak from string" $
+            property isStringTweak
+    describe "tweaks" $ do
+        it "add secret key" $ property tweakAddSecKeyTest
+        it "multiply secret key" $ property tweakMulSecKeyTest
+        it "add public key" $ property tweakAddPubKeyTest
+        it "multiply public key" $ property tweakMulPubKeyTest
+        it "combine public keys" $ property combinePubKeyTest
+        it "can't combine 0 public keys" $ property combinePubKeyEmptyListTest
 #ifdef RECOVERY
+    describe "recovery" $ do
+        it "recovers public keys" $
+            property recoverTest
+        it "recovers key from signed message" $
+            property signRecMsgTest
+        it "does not recover bad public keys" $
+            property badRecoverTest
+        it "detects bad recoverable signature" $
+            property badRecSignatureTest
         it "serializes compact recoverable signature" $
-            property $ serializeCompactRecSigTest
+            property serializeCompactRecSigTest
         it "shows and reads recoverable signature" $
-            property $ (showReadRecSig :: (SecKey, Msg) -> Bool)
+            property (showReadRecSig :: (SecKey, Msg) -> Bool)
         it "reads recoverable signature from string" $ property $ isStringRecSig
 #endif
-    describe "tweaks" $ do
-        it "add secret key" $ property $ tweakAddSecKeyTest
-        it "multiply secret key" $ property $ tweakMulSecKeyTest
-        it "add public key" $ property $ tweakAddPubKeyTest
-        it "multiply public key" $ property $ tweakMulPubKeyTest
-        it "combine public keys" $ property $ combinePubKeyTest
-        it "can't combine 0 public keys" $ property $ combinePubKeyEmptyListTest
 #ifdef NEGATE
-        it "negates tweak" $ property $ negateTweakTest
+    describe "negate" $
+        it "negates tweak" $ property negateTweakTest
 #endif
 #ifdef ECDH
     describe "ecdh" $ do
-        it "computes dh secret" $ property $ computeDhSecret
+        it "computes dh secret" $ property computeDhSecret
 #endif
 #ifdef SCHNORR
     describe "schnorr (bip-340)" $ do
-        it "validates test vector 0" $ property bip340Vector0
-        it "rejects test vector 5" $ property $
+        it "validates test vector 0" $
+            property bip340Vector0
+        it "rejects test vector 5" $
+            property $
             failingVectorToAssertion InvalidPubKey
               (
                 hexToBytes "eefdea4cdb677750a420fee807eacf21eb9898ae79b9768766e4faa04a2d4a34",
                 hexToBytes "243f6a8885a308d313198a2e03707344a4093822299f31d0082efa98ec4e6c89",
                 hexToBytes "667c2f778e0616e611bd0c14b8a600c5884551701a949ef0ebfd72d452d64e844160bcfc3f466ecb8facd19ade57d8699d74e7207d78c6aedc3799b52a8e0598"
               )
-        it "rejects test vector 6" $ property $
+        it "rejects test vector 6" $
+            property $
             failingVectorToAssertion InvalidSig
               (
                 hexToBytes "dff1d77f2a671c5f36183726db2341be58feae1da2deced843240f7b502ba659",
                 hexToBytes "243f6a8885a308d313198a2e03707344a4093822299f31d0082efa98ec4e6c89",
                 hexToBytes "f9308a019258c31049344f85f89d5229b531c845836f99b08601f113bce036f9935554d1aa5f0374e5cdaacb3925035c7c169b27c4426df0a6b19af3baeab138"
               )
-        it "makes a valid taproot key spend signature" $ property taprootKeySpend
+        it "makes a valid taproot key spend signature" $
+            property taprootKeySpend
 #endif
 
 hexToBytes :: String -> BS.ByteString
@@ -100,7 +125,7 @@ isStringSig (k, m) = g == fromString (cs hex) where
 isStringRecSig :: (SecKey, Msg) -> Bool
 isStringRecSig (k, m) = g == fromString (cs hex) where
     g = signRecMsg k m
-    hex = B16.encode . encode $ exportCompactRecSig g
+    hex = B16.encode . S.encode $ exportCompactRecSig g
 #endif
 
 isStringMsg :: Msg -> Bool
@@ -138,6 +163,11 @@ signMsgTest :: (Msg, SecKey) -> Bool
 signMsgTest (fm, fk) = verifySig fp fg fm where
     fp = derivePubKey fk
     fg = signMsg fk fm
+
+signMsgParTest :: [(Msg, SecKey)] -> Bool
+signMsgParTest xs = P.runPar $ do
+    ys <- mapM (P.spawnP . signMsgTest) xs
+    and <$> mapM P.get ys
 
 #ifdef RECOVERY
 signRecMsgTest :: (Msg, SecKey) -> Bool
