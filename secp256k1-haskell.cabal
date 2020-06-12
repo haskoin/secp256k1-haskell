@@ -1,10 +1,10 @@
-cabal-version: 2.2
+cabal-version: 2.0
 
 -- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 7f0790302d825db32e5c84672e79199fd025c47ce875636556cc23fde4c3cc5f
+-- hash: bd2e5c4ac3f84ef9b07d278afa099869aa61d825e272c7649cf67caebb87bfbb
 
 name:           secp256k1-haskell
 version:        0.2.4
@@ -16,8 +16,8 @@ bug-reports:    https://github.com/haskoin/secp256k1-haskell.git/issues
 author:         Jean-Pierre Rupp
 maintainer:     jprupp@protonmail.ch
 copyright:      (c) 2017 Jean-Pierre Rupp
-license:        Unlicense
-license-file:   UNLICENSE
+license:        MIT
+license-file:   LICENSE
 build-type:     Simple
 extra-source-files:
     CHANGELOG.md
