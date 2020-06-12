@@ -1,6 +1,6 @@
 name: secp256k1-haskell
-version: 0.2.4
-synopsis: Bindings for secp256k1 library from Bitcoin Core
+version: 0.2.5
+synopsis: Bindings for secp256k1
 description: Sign and verify signatures using the secp256k1 library.
 category: Crypto
 author: Jean-Pierre Rupp
