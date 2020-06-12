@@ -1,13 +1,13 @@
-cabal-version: 1.12
+cabal-version: 2.2
 
 -- This file has been generated from package.yaml by hpack version 0.33.0.
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: 16aee2fed95caee7ec390abc8e88433479bf9a3c51dc68b00b1d5eaaebe5b5a1
+-- hash: f9d0067a252f8ee8b92357e8ff9d65c898ef8e34b94967aff89e17b7ec9919bd
 
 name:           secp256k1-haskell
-version:        0.2.3
+version:        0.2.4
 synopsis:       Bindings for secp256k1 library from Bitcoin Core
 description:    Sign and verify signatures using the very fast C secp256k1 library from Pieter Wuille. Has Haskell types and abstractions for keys and signatures.
 category:       Crypto
@@ -16,7 +16,7 @@ bug-reports:    https://github.com/haskoin/secp256k1-haskell.git/issues
 author:         Jean-Pierre Rupp
 maintainer:     jprupp@protonmail.ch
 copyright:      (c) 2017 Jean-Pierre Rupp
-license:        PublicDomain
+license:        Unlicense
 license-file:   UNLICENSE
 build-type:     Simple
 extra-source-files:

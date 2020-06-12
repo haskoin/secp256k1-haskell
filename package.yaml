@@ -1,12 +1,12 @@
 name: secp256k1-haskell
-version: 0.2.3
+version: 0.2.4
 synopsis: Bindings for secp256k1 library from Bitcoin Core
 description: Sign and verify signatures using the very fast C secp256k1 library from Pieter Wuille. Has Haskell types and abstractions for keys and signatures.
 category: Crypto
 author: Jean-Pierre Rupp
 maintainer: jprupp@protonmail.ch
 copyright: (c) 2017 Jean-Pierre Rupp
-license: PublicDomain
+license: Unlicense
 license-file: UNLICENSE
 github: haskoin/secp256k1-haskell.git
 homepage: http://github.com/haskoin/secp256k1-haskell#readme
