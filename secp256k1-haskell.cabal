@@ -4,12 +4,12 @@ cabal-version: 2.2
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f9d0067a252f8ee8b92357e8ff9d65c898ef8e34b94967aff89e17b7ec9919bd
+-- hash: 7f0790302d825db32e5c84672e79199fd025c47ce875636556cc23fde4c3cc5f
 
 name:           secp256k1-haskell
 version:        0.2.4
 synopsis:       Bindings for secp256k1 library from Bitcoin Core
-description:    Sign and verify signatures using the very fast C secp256k1 library from Pieter Wuille. Has Haskell types and abstractions for keys and signatures.
+description:    Sign and verify signatures using the secp256k1 library.
 category:       Crypto
 homepage:       http://github.com/haskoin/secp256k1-haskell#readme
 bug-reports:    https://github.com/haskoin/secp256k1-haskell.git/issues
@@ -51,7 +51,8 @@ library
   exposed-modules:
       Crypto.Secp256k1
       Crypto.Secp256k1.Internal
-  other-modules:
+      Paths_secp256k1_haskell
+  autogen-modules:
       Paths_secp256k1_haskell
   hs-source-dirs:
       src
