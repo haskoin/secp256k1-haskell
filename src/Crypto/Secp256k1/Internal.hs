@@ -23,15 +23,13 @@ import           Data.Serialize        (Serialize (..))
 import qualified Data.Serialize.Get    as Get
 import qualified Data.Serialize.Put    as Put
 import           Data.Void             (Void)
-import           Data.Word             (Word8)
-import           Foreign               (ForeignPtr, FunPtr, Ptr, Storable (..),
-                                        alloca, castPtr, copyArray,
-                                        newForeignPtr, withForeignPtr)
+import           Foreign               (FunPtr, Ptr, Storable (..),
+                                        alloca, castPtr, copyArray)
 import           Foreign.C             (CInt (..), CSize (..), CString, CUChar,
                                         CUInt (..))
 import           GHC.Generics          (Generic)
 import           System.Entropy        (getEntropy)
-import           System.IO.Unsafe      (unsafeDupablePerformIO, unsafePerformIO)
+import           System.IO.Unsafe      (unsafePerformIO)
 
 data Ctx = Ctx
 
@@ -263,18 +261,16 @@ isSuccess (Ret 0) = False
 isSuccess (Ret 1) = True
 isSuccess (Ret n) = error $ "isSuccess expected 0 or 1 but got " <> show n
 
-{-# NOINLINE fctx #-}
-fctx :: ForeignPtr Ctx
-fctx = unsafePerformIO $ do
+{-# NOINLINE ctx #-}
+ctx :: Ptr Ctx
+ctx = unsafePerformIO $ do
     x <- contextCreate signVerify
     e <- getEntropy 32
-    ret <- alloca $ \s -> poke s (Seed32 (toShort e)) >> contextRandomize x s
+    ret <- alloca $ \s -> do
+        poke s (Seed32 (toShort e))
+        contextRandomize x s
     unless (isSuccess ret) $ error "failed to randomize context"
-    newForeignPtr contextDestroy x
-
-{-# INLINE withContext #-}
-withContext :: (Ptr Ctx -> IO a) -> a
-withContext f = unsafeDupablePerformIO (withForeignPtr fctx f)
+    return x
 
 foreign import ccall
     "secp256k1.h secp256k1_context_create"

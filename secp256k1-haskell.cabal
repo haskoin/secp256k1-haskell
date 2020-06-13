@@ -4,11 +4,11 @@ cabal-version: 2.0
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: bd2e5c4ac3f84ef9b07d278afa099869aa61d825e272c7649cf67caebb87bfbb
+-- hash: f64a6c7d68d58fab5fc141dd7bda78089fe9403dc39525641eba1ca0fd92593c
 
 name:           secp256k1-haskell
-version:        0.2.4
-synopsis:       Bindings for secp256k1 library from Bitcoin Core
+version:        0.2.5
+synopsis:       Bindings for secp256k1
 description:    Sign and verify signatures using the secp256k1 library.
 category:       Crypto
 homepage:       http://github.com/haskoin/secp256k1-haskell#readme
