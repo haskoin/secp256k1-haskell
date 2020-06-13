@@ -23,8 +23,8 @@ import           Data.Serialize        (Serialize (..))
 import qualified Data.Serialize.Get    as Get
 import qualified Data.Serialize.Put    as Put
 import           Data.Void             (Void)
-import           Foreign               (FunPtr, Ptr, Storable (..),
-                                        alloca, castPtr, copyArray)
+import           Foreign               (FunPtr, Ptr, Storable (..), alloca,
+                                        castPtr, copyArray)
 import           Foreign.C             (CInt (..), CSize (..), CString, CUChar,
                                         CUInt (..))
 import           GHC.Generics          (Generic)
@@ -52,16 +52,6 @@ data CompactSig =
 newtype RecSig65 = RecSig65 { getRecSig65 :: ShortByteString }
     deriving (Read, Show, Eq, Ord, Generic, NFData)
 
-#ifdef RECOVERY
-data CompactRecSig =
-    CompactRecSig
-        { getCompactRecSigR :: !ShortByteString
-        , getCompactRecSigS :: !ShortByteString
-        , getCompactRecSigV :: !Word8
-        }
-    deriving (Show, Eq, Ord, Generic, NFData)
-#endif
-
 newtype Seed32 = Seed32 { getSeed32 :: ShortByteString }
     deriving (Read, Show, Eq, Ord, Generic, NFData)
 
@@ -86,14 +76,6 @@ newtype SerFlags = SerFlags { getSerFlags :: CUInt }
 newtype Ret = Ret { getRet :: CInt }
     deriving (Read, Show, Eq, Ord, Generic, NFData)
 
-#ifdef SCHNORR
-newtype XOnlyPubKey64 = XOnlyPubKey64 { getXOnlyPubKey64 :: ShortByteString }
-    deriving (Read, Show, Eq, Ord, Generic, NFData)
-
-newtype SchnorrSig64 = SchnorrSig64 { getSchnorrSig64 :: ShortByteString }
-    deriving (Read, Show, Eq, Ord, Generic, NFData)
-#endif
-
 verify :: CtxFlags
 verify = CtxFlags 0x0101
 
@@ -115,22 +97,6 @@ useByteString bs f =
 
 packByteString :: (Ptr CUChar, CSize) -> IO ByteString
 packByteString (b, l) = BS.packCStringLen (castPtr b, fromIntegral l)
-
-#if SCHNORR
-instance Storable XOnlyPubKey64 where
-    sizeOf _ = 64
-    alignment _ = 1
-    peek p = XOnlyPubKey64 . toShort <$> packByteString (castPtr p, 64)
-    poke p (XOnlyPubKey64 k) = useByteString (fromShort k) $
-        \(b, _) -> copyArray (castPtr p) b 64
-
-instance Storable SchnorrSig64 where
-    sizeOf _ = 64
-    alignment _ = 1
-    peek p = SchnorrSig64 . toShort <$> packByteString (castPtr p, 64)
-    poke p (SchnorrSig64 k) = useByteString (fromShort k) $
-        \(b, _) -> copyArray (castPtr p) b 64
-#endif
 
 instance Storable PubKey64 where
     sizeOf _ = 64
@@ -172,47 +138,6 @@ instance Serialize CompactSig where
     put (CompactSig r s) = do
         Put.putShortByteString r
         Put.putShortByteString s
-
-#ifdef RECOVERY
-instance Storable RecSig65 where
-    sizeOf _ = 65
-    alignment _ = 1
-    peek p = RecSig65 . toShort <$> packByteString (castPtr p, 65)
-    poke p (RecSig65 k) = useByteString (fromShort k) $
-        \(b, _) -> copyArray (castPtr p) b 65
-
-instance Storable CompactRecSig where
-    sizeOf _ = 65
-    alignment _ = 1
-    peek p = do
-        bs <- BS.packCStringLen (castPtr p, 65)
-        let (r, s) = BS.splitAt 32 $ BS.take 64 bs
-            v = BS.last bs
-        return CompactRecSig { getCompactRecSigR = toShort r
-                             , getCompactRecSigS = toShort s
-                             , getCompactRecSigV = v
-                             }
-    poke p CompactRecSig{..} =
-        useByteString bs $ \(b, _) -> copyArray (castPtr p) b 65
-      where
-        bs = fromShort getCompactRecSigR `BS.append`
-             fromShort getCompactRecSigS `BS.snoc`
-             getCompactRecSigV
-
-instance Serialize CompactRecSig where
-    get = do
-        r <- Get.getByteString 32
-        s <- Get.getByteString 32
-        v <- Get.getWord8
-        return CompactRecSig { getCompactRecSigR = toShort r
-                             , getCompactRecSigS = toShort s
-                             , getCompactRecSigV = v
-                             }
-    put (CompactRecSig r s v) = do
-        Put.putShortByteString r
-        Put.putShortByteString s
-        Put.putWord8 v
-#endif
 
 instance Storable Msg32 where
     sizeOf _ = 32
@@ -410,14 +335,12 @@ foreign import ccall
     -> Ptr Tweak32
     -> IO Ret
 
-#ifdef NEGATE
 foreign import ccall
     "secp256k1.h secp256k1_ec_privkey_negate"
     ecTweakNegate
     :: Ptr Ctx
     -> Ptr Tweak32
     -> IO Ret
-#endif
 
 foreign import ccall
     "secp256k1.h secp256k1_ec_pubkey_tweak_add"
@@ -458,156 +381,3 @@ foreign import ccall
     -> Ptr (Ptr PubKey64) -- ^ pointer to array of public keys
     -> CInt -- ^ number of public keys
     -> IO Ret
-
-#ifdef RECOVERY
-foreign import ccall
-    "secp256k1_recovery.h secp256k1_ecdsa_recoverable_signature_parse_compact"
-    ecdsaRecoverableSignatureParseCompact
-    :: Ptr Ctx
-    -> Ptr RecSig65
-    -> Ptr CompactSig
-    -> CInt
-    -> IO Ret
-
-foreign import ccall
-    "secp256k1_recovery.h secp256k1_ecdsa_recoverable_signature_convert"
-    ecdsaRecoverableSignatureConvert
-    :: Ptr Ctx
-    -> Ptr Sig64
-    -> Ptr RecSig65
-    -> IO Ret
-
-foreign import ccall
-    "secp256k1_recovery.h secp256k1_ecdsa_recoverable_signature_serialize_compact"
-    ecdsaRecoverableSignatureSerializeCompact
-    :: Ptr Ctx
-    -> Ptr CompactSig
-    -> Ptr CInt
-    -> Ptr RecSig65
-    -> IO Ret
-
-foreign import ccall
-    "secp256k1_recovery.h secp256k1_ecdsa_sign_recoverable"
-    ecdsaSignRecoverable
-    :: Ptr Ctx
-    -> Ptr RecSig65
-    -> Ptr Msg32
-    -> Ptr SecKey32
-    -> Ptr Void
-    -> Ptr a -- ^ nonce data
-    -> IO Ret
-
-foreign import ccall
-    "secp256k1_recovery.h secp256k1_ecdsa_recover"
-    ecdsaRecover
-    :: Ptr Ctx
-    -> Ptr PubKey64
-    -> Ptr RecSig65
-    -> Ptr Msg32
-    -> IO Ret
-#endif
-
-#ifdef SCHNORR
-foreign import ccall
-    "secp256k1.h secp256k1_xonly_pubkey_tweak_add"
-    schnorrPubKeyTweakAdd
-    :: Ptr Ctx
-    -> Ptr XOnlyPubKey64
-    -> Ptr CInt
-    -> Ptr Tweak32
-    -> IO Ret
-
-foreign import ccall
-    "secp256k1.h secp256k1_xonly_seckey_tweak_add"
-    schnorrSecKeyTweakAdd
-    :: Ptr Ctx
-    -> Ptr SecKey32
-    -> Ptr Tweak32
-    -> IO Ret
-
-foreign import ccall
-    "secp256k1.h secp256k1_schnorrsig_serialize"
-    signatureSerializeSchnorr
-    :: Ptr Ctx
-    -> Ptr CUChar -- ^ array for encoded signature, must be large enough
-    -> Ptr SchnorrSig64
-    -> IO Ret
-
-foreign import ccall
-    "secp256k1.h secp256k1_schnorrsig_sign"
-    schnorrSign
-    :: Ptr Ctx
-    -> Ptr SchnorrSig64
-    -> Ptr Msg32
-    -> Ptr SecKey32
-    -- TODO
-    -- This is actually an "extended nonce function" in the C code. So this signature is broken,
-    -- but we pass a nullFunPtr (and this module is Internal), so it doesn't matter right now.
-    -> Ptr Void
-    -> Ptr a -- ^ nonce data
-    -> IO Ret
-
-foreign import ccall
-    "secp256k1.h secp256k1_xonly_pubkey_tweak_test"
-    xOnlyPubKeyTweakTest
-    :: Ptr Ctx
-    -> Ptr XOnlyPubKey64 -- output_pubkey
-    -> CInt -- is_negated
-    -> Ptr XOnlyPubKey64 -- internal_pubkey
-    -> Ptr Tweak32
-    -> IO Ret
-
-foreign import ccall
-    "secp256k1.h secp256k1_xonly_pubkey_serialize"
-    schnorrPubKeySerialize
-    :: Ptr Ctx
-    -> Ptr CUChar -- 32 bytes output buffer
-    -> Ptr XOnlyPubKey64
-    -> IO Ret
-
-foreign import ccall
-    "secp256k1.h secp256k1_schnorrsig_verify"
-    schnorrSignatureVerify
-    :: Ptr Ctx
-    -> Ptr SchnorrSig64
-    -> Ptr Msg32
-    -> Ptr XOnlyPubKey64
-    -> IO Ret
-
-foreign import ccall
-    "secp256k1.h secp256k1_schnorrsig_parse"
-    schnorrSignatureParse
-    :: Ptr Ctx
-    -> Ptr SchnorrSig64 -- out
-    -> Ptr CUChar -- in
-    -> IO Ret
-
-foreign import ccall
-    "secp256k1.h secp256k1_xonly_pubkey_parse"
-    schnorrXOnlyPubKeyParse
-    :: Ptr Ctx
-    -> Ptr XOnlyPubKey64 -- out
-    -> Ptr CUChar -- in
-    -> IO Ret
-
-foreign import ccall
-    "secp256k1.h secp256k1_xonly_pubkey_create"
-    schnorrXOnlyPubKeyCreate
-    :: Ptr Ctx
-    -> Ptr XOnlyPubKey64
-    -> Ptr SecKey32
-    -> IO Ret
-#endif
-
-#ifdef ECDH
-foreign import ccall
-    "secp256k1_ecdh.h secp256k1_ecdh"
-    ecEcdh
-    :: Ptr Ctx
-    -> Ptr CUChar
-    -> Ptr PubKey64
-    -> Ptr SecKey32
-    -> Ptr a
-    -> Ptr b
-    -> IO Ret
-#endif

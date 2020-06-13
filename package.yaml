@@ -1,5 +1,5 @@
 name: secp256k1-haskell
-version: 0.2.5
+version: 0.3.0
 synopsis: Bindings for secp256k1
 description: Sign and verify signatures using the secp256k1 library.
 category: Crypto
@@ -23,15 +23,6 @@ dependencies:
   - hashable
   - QuickCheck
   - string-conversions
-when:
-  - condition: flag(ecdh)
-    cpp-options: -DECDH
-  - condition: flag(schnorr)
-    cpp-options: -DSCHNORR
-  - condition: flag(recovery)
-    cpp-options: -DRECOVERY
-  - condition: flag(negate)
-    cpp-options: -DNEGATE
 library:
   source-dirs: src
   generated-exposed-modules:
@@ -55,20 +46,3 @@ tests:
       - monad-par
       - mtl
       - HUnit
-flags:
-  negate:
-    description: "Enable tweak negate"
-    manual: true
-    default: false
-  ecdh:
-    description: "Enable (experimental) ECDH APIs"
-    manual: true
-    default: false
-  schnorr:
-    description: "Enable BIP-340 (Schnorr) APIs"
-    manual: true
-    default: false
-  recovery:
-    description: "Enable signature key recovery APIs"
-    manual: true
-    default: false

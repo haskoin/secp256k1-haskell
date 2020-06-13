@@ -4,10 +4,10 @@ cabal-version: 2.0
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: f64a6c7d68d58fab5fc141dd7bda78089fe9403dc39525641eba1ca0fd92593c
+-- hash: d55c31829652e236145323f89ee1ec9c61e4f18712778a13011c688d36db8b19
 
 name:           secp256k1-haskell
-version:        0.2.5
+version:        0.3.0
 synopsis:       Bindings for secp256k1
 description:    Sign and verify signatures using the secp256k1 library.
 category:       Crypto
@@ -26,26 +26,6 @@ extra-source-files:
 source-repository head
   type: git
   location: https://github.com/haskoin/secp256k1-haskell.git
-
-flag ecdh
-  description: Enable (experimental) ECDH APIs
-  manual: True
-  default: False
-
-flag negate
-  description: Enable tweak negate
-  manual: True
-  default: False
-
-flag recovery
-  description: Enable signature key recovery APIs
-  manual: True
-  default: False
-
-flag schnorr
-  description: Enable BIP-340 (Schnorr) APIs
-  manual: True
-  default: False
 
 library
   exposed-modules:
@@ -68,14 +48,6 @@ library
     , entropy
     , hashable
     , string-conversions
-  if flag(ecdh)
-    cpp-options: -DECDH
-  if flag(schnorr)
-    cpp-options: -DSCHNORR
-  if flag(recovery)
-    cpp-options: -DRECOVERY
-  if flag(negate)
-    cpp-options: -DNEGATE
   default-language: Haskell2010
 
 test-suite spec
@@ -103,13 +75,5 @@ test-suite spec
     , mtl
     , secp256k1-haskell
     , string-conversions
-  if flag(ecdh)
-    cpp-options: -DECDH
-  if flag(schnorr)
-    cpp-options: -DSCHNORR
-  if flag(recovery)
-    cpp-options: -DRECOVERY
-  if flag(negate)
-    cpp-options: -DNEGATE
   default-language: Haskell2010
   build-tool-depends: hspec-discover:hspec-discover
