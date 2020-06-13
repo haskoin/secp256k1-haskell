@@ -9,7 +9,7 @@
 # named .travis.yml
 
 # Choose a build environment
-dist: xenial
+dist: bionic
 
 # Do not choose a language; we provide our own build tools.
 language: generic
