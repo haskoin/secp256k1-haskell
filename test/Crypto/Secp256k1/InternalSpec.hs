@@ -17,7 +17,7 @@ spec :: Spec
 spec = do
     describe "housekeeping" $ do
         it "creates context" createContextTest
-        it "randomizez context" randomizeContextTest
+        it "randomizes context" randomizeContextTest
         it "clones context" cloneContextTest
     describe "serialization" $ do
         it "parses public key" ecPubkeyParseTest
