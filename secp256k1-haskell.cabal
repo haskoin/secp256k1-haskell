@@ -4,10 +4,10 @@ cabal-version: 2.0
 --
 -- see: https://github.com/sol/hpack
 --
--- hash: d55c31829652e236145323f89ee1ec9c61e4f18712778a13011c688d36db8b19
+-- hash: a6861180774adce26925996e63a710235483c286bdea253bdf7d3daa64862113
 
 name:           secp256k1-haskell
-version:        0.3.0
+version:        0.3.1
 synopsis:       Bindings for secp256k1
 description:    Sign and verify signatures using the secp256k1 library.
 category:       Crypto

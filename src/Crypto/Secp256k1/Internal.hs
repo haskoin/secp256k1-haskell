@@ -197,24 +197,24 @@ ctx = unsafePerformIO $ do
     unless (isSuccess ret) $ error "failed to randomize context"
     return x
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_context_create"
     contextCreate
     :: CtxFlags
     -> IO (Ptr Ctx)
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_context_clone"
     contextClone
     :: Ptr Ctx
     -> IO (Ptr Ctx)
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h &secp256k1_context_destroy"
     contextDestroy
     :: FunPtr (Ptr Ctx -> IO ())
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_context_set_illegal_callback"
     setIllegalCallback
     :: Ptr Ctx
@@ -222,7 +222,7 @@ foreign import ccall
     -> Ptr a                              -- ^ data
     -> IO ()
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_context_set_error_callback"
     setErrorCallback
     :: Ptr Ctx
@@ -230,7 +230,7 @@ foreign import ccall
     -> Ptr a                              -- ^ data
     -> IO ()
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ec_pubkey_parse"
     ecPubKeyParse
     :: Ptr Ctx
@@ -239,7 +239,7 @@ foreign import ccall
     -> CSize      -- ^ size of encoded public key array
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ec_pubkey_serialize"
     ecPubKeySerialize
     :: Ptr Ctx
@@ -249,7 +249,7 @@ foreign import ccall
     -> SerFlags
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ecdsa_signature_parse_compact"
     ecdsaSignatureParseCompact
     :: Ptr Ctx
@@ -258,7 +258,7 @@ foreign import ccall
     -> IO Ret
 
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ecdsa_signature_parse_der"
     ecdsaSignatureParseDer
     :: Ptr Ctx
@@ -267,7 +267,7 @@ foreign import ccall
     -> CSize      -- ^ size of encoded signature
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ecdsa_signature_serialize_der"
     ecdsaSignatureSerializeDer
     :: Ptr Ctx
@@ -276,7 +276,7 @@ foreign import ccall
     -> Ptr Sig64
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ecdsa_signature_serialize_compact"
     ecdsaSignatureSerializeCompact
     :: Ptr Ctx
@@ -284,7 +284,7 @@ foreign import ccall
     -> Ptr Sig64
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ecdsa_verify"
     ecdsaVerify
     :: Ptr Ctx
@@ -293,7 +293,7 @@ foreign import ccall
     -> Ptr PubKey64
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ecdsa_signature_normalize"
     ecdsaSignatureNormalize
     :: Ptr Ctx
@@ -301,7 +301,7 @@ foreign import ccall
     -> Ptr Sig64 -- ^ input
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ecdsa_sign"
     ecdsaSign
     :: Ptr Ctx
@@ -312,14 +312,14 @@ foreign import ccall
     -> Ptr a -- ^ nonce data
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ec_seckey_verify"
     ecSecKeyVerify
     :: Ptr Ctx
     -> Ptr SecKey32
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ec_pubkey_create"
     ecPubKeyCreate
     :: Ptr Ctx
@@ -327,7 +327,7 @@ foreign import ccall
     -> Ptr SecKey32
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ec_privkey_tweak_add"
     ecSecKeyTweakAdd
     :: Ptr Ctx
@@ -335,14 +335,14 @@ foreign import ccall
     -> Ptr Tweak32
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ec_privkey_negate"
     ecTweakNegate
     :: Ptr Ctx
     -> Ptr Tweak32
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ec_pubkey_tweak_add"
     ecPubKeyTweakAdd
     :: Ptr Ctx
@@ -350,7 +350,7 @@ foreign import ccall
     -> Ptr Tweak32
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ec_privkey_tweak_mul"
     ecSecKeyTweakMul
     :: Ptr Ctx
@@ -358,7 +358,7 @@ foreign import ccall
     -> Ptr Tweak32
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ec_pubkey_tweak_mul"
     ecPubKeyTweakMul
     :: Ptr Ctx
@@ -366,14 +366,14 @@ foreign import ccall
     -> Ptr Tweak32
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_context_randomize"
     contextRandomize
     :: Ptr Ctx
     -> Ptr Seed32
     -> IO Ret
 
-foreign import ccall
+foreign import ccall unsafe
     "secp256k1.h secp256k1_ec_pubkey_combine"
     ecPubKeyCombine
     :: Ptr Ctx
