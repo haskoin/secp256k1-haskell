@@ -6,8 +6,7 @@ import           Crypto.Secp256k1
 import qualified Data.ByteString         as BS
 import qualified Data.ByteString.Base16  as B16
 import qualified Data.ByteString.Char8   as B8
-import           Data.Maybe              (fromMaybe)
-import qualified Data.Serialize          as S
+import           Data.Maybe              (fromMaybe, isNothing)
 import           Data.String             (fromString)
 import           Data.String.Conversions (cs)
 import           Test.Hspec
@@ -115,9 +114,9 @@ badSignatureTest (fm, fk, fp) = not $ verifySig fp fg fm where
     fg = signMsg fk fm
 
 normalizeSigTest :: (Msg, SecKey) -> Bool
-normalizeSigTest (fm, fk) = not norm && sig == fg where
+normalizeSigTest (fm, fk) = isNothing sig where
     fg = signMsg fk fm
-    (sig, norm) = normalizeSig fg
+    sig = normalizeSig fg
 
 serializePubKeyTest :: (PubKey, Bool) -> Bool
 serializePubKeyTest (fp, b) =
