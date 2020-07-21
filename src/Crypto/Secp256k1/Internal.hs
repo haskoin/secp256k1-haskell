@@ -27,7 +27,6 @@ data Compact64
 data Seed32
 data SecKey32
 data Tweak32
-data RecSig65
 
 type CtxFlags = CUInt
 type SerFlags = CUInt

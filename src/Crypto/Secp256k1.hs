@@ -64,6 +64,8 @@ import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Base16    as B16
 import           Data.Hashable             (Hashable (..))
 import           Data.Maybe                (fromJust, fromMaybe, isJust)
+import           Data.Serialize            (Serialize (..), getByteString,
+                                            putByteString)
 import           Data.String               (IsString (..))
 import           Data.String.Conversions   (ConvertibleStrings, cs)
 import           Foreign                   (alloca, allocaArray, allocaBytes,
@@ -86,10 +88,32 @@ newtype SecKey     = SecKey     { getSecKey     :: ByteString    }
     deriving (Eq, Generic, NFData)
 newtype Tweak      = Tweak      { getTweak      :: ByteString    }
     deriving (Eq, Generic, NFData)
-newtype RecSig     = RecSig     { getRecSig     :: ByteString    }
-    deriving (Eq, Generic, NFData)
 newtype CompactSig = CompactSig { getCompactSig :: ByteString    }
     deriving (Eq, Generic, NFData)
+
+instance Serialize PubKey where
+    put (PubKey bs) = putByteString bs
+    get = PubKey <$> getByteString 64
+
+instance Serialize Msg where
+    put (Msg m) = putByteString m
+    get = Msg <$> getByteString 32
+
+instance Serialize Sig where
+    put (Sig bs) = putByteString bs
+    get = Sig <$> getByteString 64
+
+instance Serialize SecKey where
+    put (SecKey bs) = putByteString bs
+    get = SecKey <$> getByteString 32
+
+instance Serialize Tweak where
+    put (Tweak bs) = putByteString bs
+    get = Tweak <$> getByteString 32
+
+instance Serialize CompactSig where
+    put (CompactSig bs) = putByteString bs
+    get = CompactSig <$> getByteString 64
 
 decodeHex :: ConvertibleStrings a ByteString => a -> Maybe ByteString
 decodeHex str = if BS.null r then Just bs else Nothing where
