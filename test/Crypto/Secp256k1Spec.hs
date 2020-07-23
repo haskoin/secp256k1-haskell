@@ -1,6 +1,7 @@
 {-# LANGUAGE CPP #-}
 module Crypto.Secp256k1Spec (spec) where
 
+import           Control.Monad.Par
 import qualified Control.Monad.Par       as P
 import           Crypto.Secp256k1
 import qualified Data.ByteString         as BS
@@ -27,8 +28,12 @@ spec = do
     describe "serialization" $ do
         it "serializes public key" $
             property serializePubKeyTest
+        it "serializes public keys in parallel" $
+            property parSerializePubKeyTest
         it "serializes DER signature" $
             property serializeSigTest
+        it "serializes DER signatures in parallel" $
+            property parSerializeSigTest
         it "serializes compact signature" $
             property serializeCompactSigTest
         it "serialize secret key" $
@@ -124,6 +129,11 @@ serializePubKeyTest (fp, b) =
         Just fp' -> fp == fp'
         Nothing  -> False
 
+parSerializePubKeyTest :: [(PubKey, Bool)] -> Bool
+parSerializePubKeyTest ps = runPar $ do
+    as <- mapM (spawnP . serializePubKeyTest) ps
+    and <$> mapM get as
+
 serializeSigTest :: (Msg, SecKey) -> Bool
 serializeSigTest (fm, fk) =
     case importSig $ exportSig fg of
@@ -131,6 +141,11 @@ serializeSigTest (fm, fk) =
         Nothing  -> False
   where
     fg = signMsg fk fm
+
+parSerializeSigTest :: [(Msg, SecKey)] -> Bool
+parSerializeSigTest ms = runPar $ do
+    as <- mapM (spawnP . serializeSigTest) ms
+    and <$> mapM get as
 
 serializeCompactSigTest :: (Msg, SecKey) -> Bool
 serializeCompactSigTest (fm, fk) =
