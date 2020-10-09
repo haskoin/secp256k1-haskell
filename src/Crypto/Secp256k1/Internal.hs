@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 {-|
 Module      : Crypto.Secp256k1.Internal
 License     : UNLICENSE
@@ -61,7 +60,7 @@ uncompressed = 0x0002
 isSuccess :: Ret -> Bool
 isSuccess 0 = False
 isSuccess 1 = True
-isSuccess n = error $ "isSuccess expected 0 or 1 but got " <> show n
+isSuccess n = error $ "isSuccess expected 0 or 1 but got " ++ show n
 
 unsafeUseByteString :: ByteString -> ((Ptr a, CSize) -> IO b) -> IO b
 unsafeUseByteString bs f =
