@@ -1,5 +1,5 @@
 name: secp256k1-haskell
-version: 0.4.0
+version: 0.5.0
 synopsis: Bindings for secp256k1
 description: Sign and verify signatures using the secp256k1 library.
 category: Crypto
@@ -10,20 +10,22 @@ license: MIT
 license-file: LICENSE
 github: haskoin/secp256k1-haskell.git
 homepage: http://github.com/haskoin/secp256k1-haskell#readme
+verbatim:
+  cabal-version: 1.24
 extra-source-files:
   - CHANGELOG.md
   - README.md
 dependencies:
-  - base >=4.8 && <5
-  - base16-bytestring
-  - bytestring
-  - cereal
-  - entropy
-  - deepseq
-  - hashable
-  - QuickCheck
-  - string-conversions
-  - unliftio
+  - base >=4.9 && <5
+  - base16-bytestring >=0.1.1.6 && <1.1
+  - bytestring >=0.10.8 && <0.11
+  - cereal >=0.5.4 && <0.6
+  - entropy >=0.3.8 && <0.5
+  - deepseq >=1.4.2 && <1.5
+  - hashable >=1.2.6 && <1.4
+  - QuickCheck >=2.9.2 && <2.15
+  - string-conversions >=0.4 && <0.5
+  - unliftio-core >=0.1.0 && <0.3 
 library:
   source-dirs: src
   generated-exposed-modules:
