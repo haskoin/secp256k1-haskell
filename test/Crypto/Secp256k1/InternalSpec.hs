@@ -4,13 +4,14 @@ module Crypto.Secp256k1.InternalSpec (spec) where
 import           Control.Monad
 import           Control.Monad.Trans
 import           Crypto.Secp256k1.Internal
-import           Data.ByteString           (ByteString, packCStringLen,
-                                            useAsCStringLen, copy)
+import           Data.ByteString           (ByteString, copy, packCStringLen,
+                                            useAsCStringLen)
 import qualified Data.ByteString.Base16    as B16
+import           Data.Either               (fromRight)
 import           Foreign
 import           System.Entropy
-import           Test.Hspec
 import           Test.HUnit                (Assertion, assertBool, assertEqual)
+import           Test.Hspec
 
 spec :: Spec
 spec = do
@@ -74,7 +75,7 @@ ecPubkeyParseTest = do
             ecPubKeyParse x pubkey (castPtr i) (fromIntegral il)
     assertBool "parsed public key" (isSuccess ret)
   where
-    der = fst $ B16.decode
+    der = fromRight undefined $ B16.decodeBase16
         "03dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd44705"
 
 ecPubKeySerializeTest :: Assertion
@@ -95,7 +96,7 @@ ecPubKeySerializeTest = do
     assertBool  "serialized public key successfully" $ isSuccess ret
     assertEqual "public key matches" der dec
   where
-    der = fst $ B16.decode
+    der = fromRight undefined $ B16.decodeBase16
         "03dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd44705"
 
 ecdsaSignatureParseDerTest :: Assertion
@@ -105,7 +106,7 @@ ecdsaSignatureParseDerTest = do
         ecdsaSignatureParseDer x s (castPtr d) (fromIntegral dl)
     assertBool "parsed signature successfully" $ isSuccess ret
   where
-    der = fst $ B16.decode
+    der = fromRight undefined $ B16.decodeBase16
         "3045022100f502bfa07af43e7ef265618b0d929a7619ee01d6150e37eb6eaaf2c8bd37\
         \fb2202206f0415ab0e9a977afd78b2c26ef39b3952096d319fd4b101c768ad6c132e30\
         \45"
@@ -134,7 +135,7 @@ ecdsaSignatureSerializeDerTest = do
     assertBool  "serialization successful" $ isSuccess ret
     assertEqual "signatures match" der enc
   where
-    der = fst $ B16.decode
+    der = fromRight undefined $ B16.decodeBase16
         "3045022100f502bfa07af43e7ef265618b0d929a7619ee01d6150e37eb6eaaf2c8bd37\
         \fb2202206f0415ab0e9a977afd78b2c26ef39b3952096d319fd4b101c768ad6c132e30\
         \45"
@@ -155,14 +156,14 @@ ecdsaVerifyTest = do
             ecdsaVerify x s m k
     assertBool "signature valid" $ isSuccess ret
   where
-    der = fst $ B16.decode
+    der = fromRight undefined $ B16.decodeBase16
         "3045022100f502bfa07af43e7ef265618b0d929a7619ee01d6150e37eb6eaaf2c8bd37\
         \fb2202206f0415ab0e9a977afd78b2c26ef39b3952096d319fd4b101c768ad6c132e30\
         \45"
-    pub = fst $ B16.decode
+    pub = fromRight undefined $ B16.decodeBase16
         "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd447051221\
         \3d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
-    msg = fst $ B16.decode
+    msg = fromRight undefined $ B16.decodeBase16
         "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
 
 signCtx :: IO Ctx
@@ -204,9 +205,9 @@ ecdsaSignTest = do
             useByteString s' $ \(s, _) -> ecdsaVerify x s m p
     assertBool "signature matches" (isSuccess ret)
   where
-    msg = fst $ B16.decode
+    msg = fromRight undefined $ B16.decodeBase16
         "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
-    key = fst $ B16.decode
+    key = fromRight undefined $ B16.decodeBase16
         "f65255094d7773ed8dd417badc9fc045c1f80fdc5b2d25172b031ce6933e039a"
 
 
@@ -217,7 +218,7 @@ ecSecKeyVerifyTest = do
         ecSecKeyVerify x k
     assertBool "valid secret key" $ isSuccess ret
   where
-    key = fst $ B16.decode
+    key = fromRight undefined $ B16.decodeBase16
         "f65255094d7773ed8dd417badc9fc045c1f80fdc5b2d25172b031ce6933e039a"
 
 ecPubkeyCreateTest :: Assertion
@@ -236,9 +237,9 @@ ecPubkeyCreateTest = do
             packCStringLen (castPtr o, len)
     assertEqual "public key matches" pub pk
   where
-    key = fst $ B16.decode
+    key = fromRight undefined $ B16.decodeBase16
         "f65255094d7773ed8dd417badc9fc045c1f80fdc5b2d25172b031ce6933e039a"
-    pub = fst $ B16.decode
+    pub = fromRight undefined $ B16.decodeBase16
         "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd447051221\
         \3d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
 
@@ -254,11 +255,11 @@ ecSecKeyTweakAddTest = do
     assertBool "successful secret key tweak" $ isSuccess ret
     assertEqual "tweaked keys match" expected tweaked
   where
-    key = fst $ B16.decode
+    key = fromRight undefined $ B16.decodeBase16
         "f65255094d7773ed8dd417badc9fc045c1f80fdc5b2d25172b031ce6933e039a"
-    tweak = fst $ B16.decode
+    tweak = fromRight undefined $ B16.decodeBase16
         "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
-    expected = fst $ B16.decode
+    expected = fromRight undefined $ B16.decodeBase16
         "ec1e3ce1cefa18a671d51125e2b249688d934b0e28f5d1665384d9b02f929059"
 
 ecSecKeyTweakMulTest :: Assertion
@@ -274,11 +275,11 @@ ecSecKeyTweakMulTest = do
     assertBool "successful secret key tweak" $ isSuccess ret
     assertEqual "tweaked keys match" expected tweaked
   where
-    key = fst $ B16.decode
+    key = fromRight undefined $ B16.decodeBase16
         "f65255094d7773ed8dd417badc9fc045c1f80fdc5b2d25172b031ce6933e039a"
-    tweak = fst $ B16.decode
+    tweak = fromRight undefined $ B16.decodeBase16
         "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
-    expected = fst $ B16.decode
+    expected = fromRight undefined $ B16.decodeBase16
         "a96f5962493acb179f60a86a9785fc7a30e0c39b64c09d24fe064d9aef15e4c0"
 
 serializeKey :: Ctx -> Ptr PubKey64 -> IO ByteString
@@ -310,12 +311,12 @@ ecPubKeyTweakAddTest = do
     assertBool "successful secret key tweak" $ isSuccess ret
     assertEqual "tweaked keys match" expected tweaked
   where
-    pub = fst $ B16.decode
+    pub = fromRight undefined $ B16.decodeBase16
         "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd447051221\
         \3d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
-    tweak = fst $ B16.decode
+    tweak = fromRight undefined $ B16.decodeBase16
         "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
-    expected = fst $ B16.decode
+    expected = fromRight undefined $ B16.decodeBase16
         "04441c3982b97576646e0df0c96736063df6b42f2ee566d13b9f6424302d1379e518fd\
         \c87a14c5435bff7a5db4552042cb4120c6b86a4bbd3d0643f3c14ad01368"
 
@@ -332,12 +333,12 @@ ecPubKeyTweakMulTest = do
     assertBool "successful secret key tweak" $ isSuccess ret
     assertEqual "tweaked keys match" expected tweaked
   where
-    pub = fst $ B16.decode
+    pub = fromRight undefined $ B16.decodeBase16
         "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd447051221\
         \3d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
-    tweak = fst $ B16.decode
+    tweak = fromRight undefined $ B16.decodeBase16
         "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
-    expected = fst $ B16.decode
+    expected = fromRight undefined $ B16.decodeBase16
         "04f379dc99cdf5c83e433defa267fbb3377d61d6b779c06a0e4ce29ae3ff5353b12ae4\
         \9c9d07e7368f2ba5a446c203255ce912322991a2d6a9d5d5761c61ed1845"
 
@@ -363,15 +364,15 @@ ecPubKeyCombineTest = do
     parse x pub p = useByteString pub $ \(d, dl) -> do
         ret <- ecPubKeyParse x p d dl
         unless (isSuccess ret) $ error "could not parse public key"
-    pub1 = fst $ B16.decode
+    pub1 = fromRight undefined $ B16.decodeBase16
         "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd447051221\
         \3d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
-    pub2 = fst $ B16.decode
+    pub2 = fromRight undefined $ B16.decodeBase16
         "0487d82042d93447008dfe2af762068a1e53ff394a5bf8f68a045fa642b99ea5d153f5\
         \77dd2dba6c7ae4cfd7b6622409d7edd2d76dd13a8092cd3af97b77bd2c77"
-    pub3 = fst $ B16.decode
+    pub3 = fromRight undefined $ B16.decodeBase16
         "049b101edcbe1ee37ff6b2318526a425b629e823d7d8d9154417880595a28000ee3feb\
         \d908754b8ce4e491aa6fe488b41fb5d4bb3788e33c9ff95a7a9229166d59"
-    expected = fst $ B16.decode
+    expected = fromRight undefined $ B16.decodeBase16
         "043d9a7ec70011efc23c33a7e62d2ea73cca87797e3b659d93bea6aa871aebde56c3bc\
         \6134ca82e324b0ab9c0e601a6d2933afe7fb5d9f3aae900f5c5dc6e362c8"

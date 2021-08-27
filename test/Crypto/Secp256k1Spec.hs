@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP #-}
 module Crypto.Secp256k1Spec (spec) where
 
 import           Control.Monad.Par
@@ -7,11 +6,12 @@ import           Crypto.Secp256k1
 import qualified Data.ByteString         as BS
 import qualified Data.ByteString.Base16  as B16
 import qualified Data.ByteString.Char8   as B8
+import           Data.Either             (fromRight)
 import           Data.Maybe              (fromMaybe, isNothing)
 import           Data.String             (fromString)
 import           Data.String.Conversions (cs)
-import           Test.Hspec
 import           Test.HUnit              (Assertion, assertEqual)
+import           Test.Hspec
 import           Test.QuickCheck
 
 spec :: Spec
@@ -68,29 +68,29 @@ spec = do
         it "negates tweak" $ property negateTweakTest
 
 hexToBytes :: String -> BS.ByteString
-hexToBytes = fst . B16.decode . B8.pack
+hexToBytes = fromRight undefined . B16.decodeBase16 . B8.pack
 
 isStringPubKey :: (PubKey, Bool) -> Bool
 isStringPubKey (k, c) = k == fromString (cs hex) where
-    hex = B16.encode $ exportPubKey c k
+    hex = B16.encodeBase16 $ exportPubKey c k
 
 isStringSig :: (SecKey, Msg) -> Bool
 isStringSig (k, m) = g == fromString (cs hex) where
     g = signMsg k m
-    hex = B16.encode $ exportSig g
+    hex = B16.encodeBase16 $ exportSig g
 
 isStringMsg :: Msg -> Bool
 isStringMsg m = m == fromString (cs m') where
-    m' = B16.encode $ getMsg m
+    m' = B16.encodeBase16 $ getMsg m
 
 isStringSecKey :: SecKey -> Bool
 isStringSecKey k = k == fromString (cs hex) where
-    hex = B16.encode $ getSecKey k
+    hex = B16.encodeBase16 $ getSecKey k
 
 isStringTweak :: SecKey -> Bool
 isStringTweak k = t == fromString (cs hex) where
     t = fromMaybe e . tweak $ getSecKey k
-    hex = B16.encode $ getTweak t
+    hex = B16.encodeBase16 $ getTweak t
     e = error "Could not extract tweak from secret key"
 
 showReadTweak :: SecKey -> Bool
@@ -239,9 +239,9 @@ negateTweakTest :: Assertion
 negateTweakTest =
     assertEqual "can recover secret key 1 after adding tweak 1" oneKey subtracted
   where
-    Just oneKey = secKey $ fst $ B16.decode $ B8.pack
+    Just oneKey = secKey $ fromRight undefined $ B16.decodeBase16 $ B8.pack
         "0000000000000000000000000000000000000000000000000000000000000001"
-    Just oneTwk = tweak $ fst $ B16.decode $ B8.pack
+    Just oneTwk = tweak $ fromRight undefined $ B16.decodeBase16 $ B8.pack
         "0000000000000000000000000000000000000000000000000000000000000001"
     Just minusOneTwk = tweakNegate oneTwk
     Just twoKey = tweakAddSecKey oneKey oneTwk
