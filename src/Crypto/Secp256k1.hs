@@ -1,4 +1,3 @@
-{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -116,14 +115,9 @@ instance Serialize CompactSig where
     get = CompactSig <$> getByteString 64
 
 decodeHex :: ConvertibleStrings a ByteString => a -> Maybe ByteString
-#if MIN_VERSION_base16_bytestring(1,0,0)
-decodeHex str = case B16.decode $ cs str of
+decodeHex str = case B16.decodeBase16 $ cs str of
   Right bs -> Just bs
   Left _ -> Nothing
-#else
-decodeHex str = if BS.null r then Just bs else Nothing where
-    (bs, r) = B16.decode $ cs str
-#endif
 
 instance Read PubKey where
     readPrec = do
@@ -138,7 +132,7 @@ instance IsString PubKey where
         e = error "Could not decode public key from hex string"
 
 instance Show PubKey where
-    showsPrec _ = shows . B16.encode . exportPubKey True
+    showsPrec _ = shows . B16.encodeBase16 . exportPubKey True
 
 instance Read Msg where
     readPrec = parens $ do
@@ -153,7 +147,7 @@ instance IsString Msg where
         e = error "Could not decode message from hex string"
 
 instance Show Msg where
-    showsPrec _ = shows . B16.encode . getMsg
+    showsPrec _ = shows . B16.encodeBase16 . getMsg
 
 instance Read Sig where
     readPrec = parens $ do
@@ -168,7 +162,7 @@ instance Hashable Sig where
     i `hashWithSalt` s = i `hashWithSalt` exportSig s
 
 instance Show Sig where
-    showsPrec _ = shows . B16.encode . exportSig
+    showsPrec _ = shows . B16.encodeBase16 . exportSig
 
 instance Read SecKey where
     readPrec = parens $ do
@@ -183,7 +177,7 @@ instance IsString SecKey where
         e = error "Colud not decode secret key from hex string"
 
 instance Show SecKey where
-    showsPrec _ = shows . B16.encode . getSecKey
+    showsPrec _ = shows . B16.encodeBase16 . getSecKey
 
 instance Hashable Tweak where
     i `hashWithSalt` t = i `hashWithSalt` getTweak t
@@ -198,7 +192,7 @@ instance IsString Tweak where
         e = error "Could not decode tweak from hex string"
 
 instance Show Tweak where
-    showsPrec _ = shows . B16.encode . getTweak
+    showsPrec _ = shows . B16.encodeBase16 . getTweak
 
 -- | Import 32-byte 'ByteString' as 'Msg'.
 msg :: ByteString -> Maybe Msg
@@ -240,7 +234,9 @@ tweak bs
 
 -- | Import DER-encoded public key.
 importPubKey :: ByteString -> Maybe PubKey
-importPubKey bs =  unsafePerformIO $
+importPubKey bs
+  | BS.null bs = Nothing
+  | otherwise = unsafePerformIO $
     unsafeUseByteString bs $ \(input, len) -> do
     pub_key <- mallocBytes 64
     ret <- ecPubKeyParse ctx pub_key input len
@@ -293,7 +289,9 @@ importCompactSig (CompactSig compact_sig) = unsafePerformIO $
 
 -- | Import DER-encoded signature.
 importSig :: ByteString -> Maybe Sig
-importSig bs = unsafePerformIO $
+importSig bs
+  | BS.null bs = Nothing
+  | otherwise = unsafePerformIO $
     unsafeUseByteString bs $ \(in_ptr, in_len) -> do
     out_sig <- mallocBytes 64
     ret <- ecdsaSignatureParseDer ctx out_sig in_ptr in_len
