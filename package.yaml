@@ -1,5 +1,5 @@
 name: secp256k1-haskell
-version: 0.6.1
+version: 0.7.0
 synopsis: Bindings for secp256k1
 description: Sign and verify signatures using the secp256k1 library.
 category: Crypto
@@ -10,6 +10,8 @@ license: MIT
 license-file: LICENSE
 github: haskoin/secp256k1-haskell.git
 homepage: http://github.com/haskoin/secp256k1-haskell#readme
+verbatim:
+  cabal-version: 2.0
 extra-source-files:
   - CHANGELOG.md
   - README.md
@@ -23,13 +25,21 @@ dependencies:
   - hashable >=1.2.6 && <1.5
   - QuickCheck >=2.9.2 && <2.15
   - string-conversions >=0.4 && <0.5
-  - unliftio-core >=0.1.0 && <0.3 
+  - unliftio-core >=0.1.0 && <0.3
+flags:
+  bip340:
+    description: Enable support for BIP340
+    default: false
+    manual: true
 library:
   source-dirs: src
   generated-exposed-modules:
     - Paths_secp256k1_haskell
   pkg-config-dependencies:
     - libsecp256k1
+  when:
+    condition: flag(bip340)
+    cpp-options: -DBIP340
 tests:
   spec:
     main: Spec.hs
@@ -47,3 +57,6 @@ tests:
       - monad-par
       - mtl
       - HUnit
+    when:
+      condition: flag(bip340)
+      cpp-options: -DBIP340

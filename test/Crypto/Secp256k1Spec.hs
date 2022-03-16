@@ -1,3 +1,6 @@
+{-# LANGUAGE CPP               #-}
+{-# LANGUAGE OverloadedStrings #-}
+
 module Crypto.Secp256k1Spec (spec) where
 
 import           Control.Monad.Par
@@ -10,7 +13,7 @@ import           Data.Either             (fromRight)
 import           Data.Maybe              (fromMaybe, isNothing)
 import           Data.String             (fromString)
 import           Data.String.Conversions (cs)
-import           Test.HUnit              (Assertion, assertEqual)
+import           Test.HUnit              (Assertion, assertBool, assertEqual)
 import           Test.Hspec
 import           Test.QuickCheck
 
@@ -66,6 +69,11 @@ spec = do
         it "combine public keys" $ property combinePubKeyTest
         it "can't combine 0 public keys" $ property combinePubKeyEmptyListTest
         it "negates tweak" $ property negateTweakTest
+#ifdef BIP340
+    describe "BIP 340" $ do
+        it "verifies a signed message (null rand32)" $ property bip340SigTestNull
+        it "verifies a signed message (not-null rand32)" $ property bip340SigTest
+#endif
 
 hexToBytes :: String -> BS.ByteString
 hexToBytes = fromRight undefined . B16.decodeBase16 . B8.pack
@@ -246,3 +254,25 @@ negateTweakTest =
     Just minusOneTwk = tweakNegate oneTwk
     Just twoKey = tweakAddSecKey oneKey oneTwk
     Just subtracted = tweakAddSecKey twoKey minusOneTwk
+
+
+#ifdef BIP340
+bip340SigTestNull :: Assertion
+bip340SigTestNull = assertBool "verifies signature" $
+    verifyBip340 pk theMsg sig
+  where
+    Just sk = secKey $ BS.replicate 32 0x01
+    pk = deriveXOnlyPubKey $ derivePubKey sk
+    Just theMsg = msg $ BS.replicate 32 0x02
+    Just sig = signBip340 sk theMsg Nothing
+
+bip340SigTest :: Assertion
+bip340SigTest = assertBool "verifies signature" $
+    verifyBip340 pk theMsg sig
+  where
+    Just sk = secKey $ BS.replicate 32 0x01
+    pk = deriveXOnlyPubKey $ derivePubKey sk
+    Just theMsg = msg $ BS.replicate 32 0x02
+    Just r = mkRand32 $ BS.replicate 32 0x03
+    Just sig = signBip340 sk theMsg (Just r)
+#endif
