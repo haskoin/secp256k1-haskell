@@ -1,11 +1,11 @@
 cabal-version: 2.0
 
--- This file has been generated from package.yaml by hpack version 0.34.6.
+-- This file has been generated from package.yaml by hpack version 0.34.4.
 --
 -- see: https://github.com/sol/hpack
 
 name:           secp256k1-haskell
-version:        0.6.0
+version:        0.6.1
 synopsis:       Bindings for secp256k1
 description:    Sign and verify signatures using the secp256k1 library.
 category:       Crypto
@@ -55,8 +55,6 @@ test-suite spec
   other-modules:
       Crypto.Secp256k1.InternalSpec
       Crypto.Secp256k1Spec
-      Paths_secp256k1_haskell
-  autogen-modules:
       Paths_secp256k1_haskell
   hs-source-dirs:
       test
