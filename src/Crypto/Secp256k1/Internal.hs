@@ -1,3 +1,5 @@
+{-# LANGUAGE CPP #-}
+
 {-|
 Module      : Crypto.Secp256k1.Internal
 License     : UNLICENSE
@@ -20,8 +22,11 @@ import           System.IO.Unsafe       (unsafePerformIO)
 
 data LCtx
 data PubKey64
+data XOnlyPubKey32
+data KeyPair96
 data Msg32
 data Sig64
+data Bip340Sig64
 data Compact64
 data Seed32
 data SecKey32
@@ -268,3 +273,71 @@ foreign import ccall safe
     -> Ptr (Ptr PubKey64) -- ^ pointer to array of public keys
     -> CInt               -- ^ number of public keys
     -> IO Ret
+
+#ifdef BIP340
+
+foreign import ccall unsafe "secp256k1.h secp256k1_schnorrsig_sign"
+    schnorrSign ::
+        Ctx ->
+        -- | Signature
+        CString ->
+        -- | Message
+        CString ->
+        -- | Keypair
+        CString ->
+        -- | Randomness
+        CString ->
+        IO CInt
+
+foreign import ccall unsafe "secp256k1.h secp256k1_schnorrsig_verify"
+    schnorrVerify ::
+        Ctx ->
+        -- | Signature
+        CString ->
+        -- | Message
+        CString ->
+        -- | Message length
+        CSize ->
+        -- | X-Only pubkey
+        CString ->
+        IO CInt
+
+foreign import ccall unsafe "secp256k1.h secp256k1_keypair_create"
+    keyPairCreate ::
+        Ctx ->
+        -- | Keypair
+        CString ->
+        -- | Secret key
+        CString ->
+        IO CInt
+
+foreign import ccall unsafe "secp256k1.h secp256k1_xonly_pubkey_parse"
+    xOnlyPubKeyParse ::
+        Ctx ->
+        -- | Parsed X-Only pubkey
+        CString ->
+        -- | Input buffer
+        CString ->
+        IO CInt
+
+foreign import ccall unsafe "secp256k1.h secp256k1_xonly_pubkey_serialize"
+    xOnlyPubKeySerialize ::
+        Ctx ->
+        -- | Output buffer
+        CString ->
+        -- | X-Only pubkey
+        CString ->
+        IO CInt
+
+foreign import ccall unsafe "secp256k1.h secp256k1_xonly_pubkey_from_pubkey"
+    xOnlyPubKeyFromPubKey ::
+        Ctx ->
+        -- | X-only pubkey
+        CString ->
+        -- | Parity
+        Ptr CInt ->
+        -- | Pubkey
+        CString ->
+        IO CInt
+
+#endif

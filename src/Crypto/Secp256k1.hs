@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP                        #-}
 {-# LANGUAGE DeriveGeneric              #-}
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
@@ -53,6 +54,21 @@ module Crypto.Secp256k1
     , tweakMulPubKey
     , combinePubKeys
     , tweakNegate
+
+    -- * BIP340 Support
+    , XOnlyPubKey
+
+#ifdef BIP340
+
+    , deriveXOnlyPubKey
+    , Rand32
+    , mkRand32
+    , Bip340Sig
+    , signBip340
+    , verifyBip340
+
+#endif
+
     ) where
 
 import           Control.DeepSeq           (NFData)
@@ -61,6 +77,7 @@ import           Crypto.Secp256k1.Internal
 import           Data.ByteString           (ByteString)
 import qualified Data.ByteString           as BS
 import qualified Data.ByteString.Base16    as B16
+import qualified Data.ByteString.Unsafe    as BU
 import           Data.Hashable             (Hashable (..))
 import           Data.Maybe                (fromJust, fromMaybe, isJust)
 import           Data.Serialize            (Serialize (..), getByteString,
@@ -117,7 +134,7 @@ instance Serialize CompactSig where
 decodeHex :: ConvertibleStrings a ByteString => a -> Maybe ByteString
 decodeHex str = case B16.decodeBase16 $ cs str of
   Right bs -> Just bs
-  Left _ -> Nothing
+  Left _   -> Nothing
 
 instance Read PubKey where
     readPrec = do
@@ -441,3 +458,120 @@ instance Arbitrary SecKey where
 
 instance Arbitrary PubKey where
     arbitrary = derivePubKey <$> arbitrary
+
+{- | An x-only pubkey corresponds to the keys @(x,y)@ and @(x, -y)@.  The
+equality test only checks the x-coordinate.  An x-only pubkey serializes to 32
+bytes.
+
+@since 0.7.0
+-}
+newtype XOnlyPubKey = XOnlyPubKey { unXOnlyPubKey :: ByteString }
+    deriving (Eq, Hashable)
+
+#ifdef BIP340
+
+instance Show XOnlyPubKey where
+    showsPrec _ = shows . B16.encodeBase16 . serializeXOnlyPubKey
+
+instance Serialize XOnlyPubKey where
+    get =
+        maybe (fail "Unable to parse x-only pubkey") pure . parseXOnlyPubKey
+            =<< getByteString 32
+    put = putByteString . serializeXOnlyPubKey
+
+newtype Bip340Sig = Bip340Sig {unBip340Sig :: ByteString}
+    deriving Eq
+
+instance Show Bip340Sig where
+    showsPrec _ = shows . B16.encodeBase16 . unBip340Sig
+
+instance Serialize Bip340Sig where
+    get = Bip340Sig <$> getByteString 64
+    put = putByteString . unBip340Sig
+
+newtype Rand32 = Rand32 {unRand32 :: ByteString}
+
+-- | Create a 'Rand32' value from a 32-byte 'ByteString'
+mkRand32 :: ByteString -> Maybe Rand32
+mkRand32 bytes
+    | BS.length bytes == 32 = Just $ Rand32 bytes
+    | otherwise = Nothing
+
+serializeXOnlyPubKey :: XOnlyPubKey -> ByteString
+serializeXOnlyPubKey pubKey = unsafePerformIO $
+    BU.unsafeUseAsCString (unXOnlyPubKey pubKey) $ \xOnlyPubKeyPtr -> do
+        outputBuffer <- mallocBytes 32
+        result <- xOnlyPubKeySerialize ctx outputBuffer xOnlyPubKeyPtr
+        if isSuccess result
+           then BU.unsafePackMallocCStringLen (outputBuffer, 32)
+           else free outputBuffer >> error "Unable to serialize x-only pubkey"
+
+parseXOnlyPubKey :: ByteString -> Maybe XOnlyPubKey
+parseXOnlyPubKey inputBytes
+    | BS.length inputBytes == 32 = unsafePerformIO $
+      BS.useAsCString inputBytes $ \inputBytesPtr -> do
+        xOnlyPubKeyPtr <- mallocBytes 64
+        result <- xOnlyPubKeyParse ctx xOnlyPubKeyPtr inputBytesPtr
+        if isSuccess result
+           then Just . XOnlyPubKey <$> BU.unsafePackMallocCStringLen (xOnlyPubKeyPtr, 64)
+           else pure Nothing
+    | otherwise = Nothing
+
+-- | Derive an x-only key from a pub key
+deriveXOnlyPubKey :: PubKey -> XOnlyPubKey
+deriveXOnlyPubKey pubKey = unsafePerformIO $
+    BU.unsafeUseAsCString (getPubKey pubKey) $ \pubKeyPtr -> do
+        xOnlyPubKeyPtr <- mallocBytes 64
+        result <- xOnlyPubKeyFromPubKey ctx xOnlyPubKeyPtr nullPtr pubKeyPtr
+        if isSuccess result
+            then XOnlyPubKey <$> BU.unsafePackMallocCStringLen (xOnlyPubKeyPtr, 64)
+            else free xOnlyPubKeyPtr >> error "Unable to derive x-only pubkey"
+
+-- | Sign a message according to BIP 340
+signBip340 ::
+    -- | Secret key
+    SecKey ->
+    -- | Message
+    Msg ->
+    -- | Randomness
+    Maybe Rand32 ->
+    -- | Signature
+    Maybe Bip340Sig
+signBip340 theSecKey message rand32 = unsafePerformIO $
+    BU.unsafeUseAsCString (getSecKey theSecKey) $ \secKeyPtr ->
+        allocaBytes 96 $ \keyPairPtr -> do
+            -- The 'SecKey' API guarantees that the following call will succeed
+            _ <- keyPairCreate ctx keyPairPtr secKeyPtr
+            BU.unsafeUseAsCString (getMsg message) $ \messageCStr -> do
+                withRand32 $ \rand32Ptr -> do
+                    sigPtr <- mallocBytes 64
+                    result <- schnorrSign ctx sigPtr messageCStr keyPairPtr rand32Ptr
+                    if isSuccess result
+                        then Just . Bip340Sig <$> BU.unsafePackMallocCStringLen (sigPtr, 64)
+                        else Nothing <$ free sigPtr
+    where
+        withRand32 = maybe ($ nullPtr) (BU.unsafeUseAsCString . unRand32) rand32
+
+
+-- | Verify a message according to BIP 340
+verifyBip340 ::
+    XOnlyPubKey ->
+    -- | Message
+    Msg ->
+    -- | Signature
+    Bip340Sig ->
+    Bool
+verifyBip340 xOnlyPubKey message sig = unsafePerformIO $
+    BU.unsafeUseAsCString (unXOnlyPubKey xOnlyPubKey) $ \xOnlyPubKeyPtr ->
+        BU.unsafeUseAsCStringLen (getMsg message) $ \(messageCStr, messageSize) ->
+            BU.unsafeUseAsCString (unBip340Sig sig) $ \signatureCStr ->
+                isSuccess
+                    <$> schnorrVerify
+                        ctx
+                        signatureCStr
+                        messageCStr
+                        (fromIntegral messageSize)
+                        xOnlyPubKeyPtr
+
+
+#endif
