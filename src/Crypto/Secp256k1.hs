@@ -40,6 +40,7 @@ module Crypto.Secp256k1
 
     -- * Signatures
     Sig,
+    sig,
     signMsg,
     verifySig,
     normalizeSig,
@@ -183,6 +184,19 @@ instance IsString Msg where
     where
       e = error "Could not decode message from hex string"
 
+instance Show Sig where
+  showsPrec _ = shows . extractBase16 . encodeBase16 . getSig
+
+instance Read Sig where
+  readPrec = parens $ do
+    String str <- lexP
+    maybe pfail return $ sig =<< decodeHex str
+
+instance IsString Sig where
+  fromString = fromMaybe e . (sig <=< decodeHex)
+    where
+      e = error "Could not decode signature from hex string"
+
 instance Show Msg where
   showsPrec _ = shows . extractBase16 . encodeBase16 . getMsg
 
@@ -225,6 +239,11 @@ withContext = bracket create destroy
       randomizeContext ctx
       return ctx
     destroy = contextDestroy
+
+sig :: ByteString -> Maybe Sig
+sig bs
+  | BS.length bs == 64 = Just (Sig bs)
+  | otherwise = Nothing
 
 pubKey :: ByteString -> Maybe PubKey
 pubKey bs
