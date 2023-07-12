@@ -17,6 +17,9 @@ module Crypto.Secp256k1
     Ctx,
     withContext,
     randomizeContext,
+    contextCreate,
+    contextClone,
+    contextDestroy,
 
     -- * Messages
     Msg,
