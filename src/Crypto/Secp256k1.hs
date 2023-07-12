@@ -31,6 +31,7 @@ module Crypto.Secp256k1
 
     -- * Public Keys
     PubKey,
+    pubKey,
     importPubKey,
     exportPubKey,
 
@@ -91,7 +92,7 @@ import Foreign
     nullPtr,
     peek,
     poke,
-    pokeArray,
+    pokeArray, Bits (bitSize),
   )
 import GHC.Generics (Generic)
 import System.IO.Unsafe (unsafePerformIO)
@@ -109,22 +110,22 @@ import Text.Read
   )
 
 newtype PubKey = PubKey {getPubKey :: ByteString}
-  deriving (Eq, Generic, NFData)
+  deriving (Eq, Generic, Hashable, NFData)
 
 newtype Msg = Msg {getMsg :: ByteString}
-  deriving (Eq, Generic, NFData)
+  deriving (Eq, Generic, Hashable, NFData)
 
 newtype Sig = Sig {getSig :: ByteString}
-  deriving (Eq, Generic, NFData)
+  deriving (Eq, Generic, Hashable, NFData)
 
 newtype SecKey = SecKey {getSecKey :: ByteString}
-  deriving (Eq, Generic, NFData)
+  deriving (Eq, Generic, Hashable, NFData)
 
 newtype Tweak = Tweak {getTweak :: ByteString}
-  deriving (Eq, Generic, NFData)
+  deriving (Eq, Generic, Hashable, NFData)
 
 newtype CompactSig = CompactSig {getCompactSig :: ByteString}
-  deriving (Eq, Generic, NFData)
+  deriving (Eq, Generic, Hashable, NFData)
 
 instance Serialize PubKey where
   put (PubKey bs) = putByteString bs
@@ -156,13 +157,23 @@ decodeHex str =
     then Just . decodeBase16 $ assertBase16 $ cs str
     else Nothing
 
+instance Read PubKey where
+  readPrec = parens $ do
+    String str <- lexP
+    maybe pfail return $ pubKey =<< decodeHex str
+
+instance IsString PubKey where
+  fromString = fromMaybe e . (pubKey <=< decodeHex)
+    where
+      e = error "Could not decode public key from hex string"
+
+instance Show PubKey where
+  showsPrec _ = shows . extractBase16 . encodeBase16 . getPubKey
+
 instance Read Msg where
   readPrec = parens $ do
     String str <- lexP
     maybe pfail return $ msg =<< decodeHex str
-
-instance Hashable Msg where
-  i `hashWithSalt` m = i `hashWithSalt` getMsg m
 
 instance IsString Msg where
   fromString = fromMaybe e . (msg <=< decodeHex)
@@ -177,9 +188,6 @@ instance Read SecKey where
     String str <- lexP
     maybe pfail return $ secKey =<< decodeHex str
 
-instance Hashable SecKey where
-  i `hashWithSalt` k = i `hashWithSalt` getSecKey k
-
 instance IsString SecKey where
   fromString = fromMaybe e . (secKey <=< decodeHex)
     where
@@ -187,9 +195,6 @@ instance IsString SecKey where
 
 instance Show SecKey where
   showsPrec _ = shows . extractBase16 . encodeBase16 . getSecKey
-
-instance Hashable Tweak where
-  i `hashWithSalt` t = i `hashWithSalt` getTweak t
 
 instance Read Tweak where
   readPrec = parens $ do
@@ -217,6 +222,11 @@ withContext = bracket create destroy
       randomizeContext ctx
       return ctx
     destroy = contextDestroy
+
+pubKey :: ByteString -> Maybe PubKey
+pubKey bs
+  | BS.length bs == 64 = Just (PubKey bs)
+  | otherwise = Nothing
 
 -- | Import 32-byte 'ByteString' as 'Msg'.
 msg :: ByteString -> Maybe Msg

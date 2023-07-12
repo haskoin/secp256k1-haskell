@@ -44,9 +44,11 @@ spec = around withContext $ do
     it "shows and reads secret key" $ \_ ->
       property (showRead :: SecKey -> Bool)
     it "shows and reads tweak" $ \_ ->
-      property (showReadTweak :: SecKey -> Bool)
+      property showReadTweak
     it "shows and reads message" $ \_ ->
       property (showRead :: Msg -> Bool)
+    it "shows and reads public key" $ \ctx ->
+      property $ showReadPubKey ctx
     it "reads secret key from string" $ \_ ->
       property isStringSecKey
     it "reads message from string" $ \_ ->
@@ -93,6 +95,12 @@ showReadTweak :: SecKey -> Bool
 showReadTweak k = showRead t
   where
     t = tweak $ getSecKey k
+
+showReadPubKey :: Ctx -> SecKey -> Bool
+showReadPubKey ctx k =
+    (read . show) p == p
+  where
+    p = derivePubKey ctx k
 
 showRead :: (Show a, Read a, Eq a) => a -> Bool
 showRead x = read (show x) == x
