@@ -17,9 +17,9 @@ module Crypto.Secp256k1
     Ctx,
     withContext,
     randomizeContext,
-    contextCreate,
-    contextClone,
-    contextDestroy,
+    createContext,
+    cloneContext,
+    destroyContext,
 
     -- * Messages
     Msg,
@@ -230,6 +230,15 @@ randomizeContext :: Ctx -> IO ()
 randomizeContext ctx = do
   ret <- withRandomSeed $ contextRandomize ctx
   unless (isSuccess ret) $ error "Could not randomize context"
+
+createContext :: IO Ctx
+createContext = contextCreate signVerify
+
+cloneContext :: Ctx -> IO Ctx
+cloneContext = contextClone
+
+destroyContext :: Ctx -> IO ()
+destroyContext = contextDestroy
 
 withContext :: (Ctx -> IO a) -> IO a
 withContext = bracket create destroy
