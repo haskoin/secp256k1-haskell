@@ -13,6 +13,7 @@ module Crypto.Secp256k1.Internal where
 import           Data.ByteString        (ByteString)
 import qualified Data.ByteString        as BS
 import qualified Data.ByteString.Unsafe as BU
+import           Data.Void              (Void)
 import           Foreign                (FunPtr, Ptr, castPtr)
 import           Foreign.C              (CInt (..), CSize (..), CString, CUChar,
                                          CUInt (..))
@@ -23,6 +24,7 @@ data PubKey64
 data Msg32
 data Sig64
 data Compact64
+data RecSig65
 data Seed32
 data SecKey32
 data Tweak32
@@ -267,4 +269,50 @@ foreign import ccall safe
     -> Ptr PubKey64       -- ^ pointer to public key storage
     -> Ptr (Ptr PubKey64) -- ^ pointer to array of public keys
     -> CInt               -- ^ number of public keys
+    -> IO Ret
+
+foreign import ccall safe
+    "secp256k1_recovery.h secp256k1_ecdsa_recoverable_signature_parse_compact"
+    ecdsaRecoverableSignatureParseCompact
+    :: Ctx
+    -> Ptr RecSig65
+    -> Ptr Compact64
+    -> CInt
+    -> IO Ret
+
+foreign import ccall safe
+    "secp256k1_recovery.h secp256k1_ecdsa_recoverable_signature_convert"
+    ecdsaRecoverableSignatureConvert
+    :: Ctx
+    -> Ptr Sig64
+    -> Ptr RecSig65
+    -> IO Ret
+
+foreign import ccall safe
+    "secp256k1_recovery.h secp256k1_ecdsa_recoverable_signature_serialize_compact"
+    ecdsaRecoverableSignatureSerializeCompact
+    :: Ctx
+    -> Ptr Compact64
+    -> Ptr CInt
+    -> Ptr RecSig65
+    -> IO Ret
+
+foreign import ccall safe
+    "secp256k1_recovery.h secp256k1_ecdsa_sign_recoverable"
+    ecdsaSignRecoverable
+    :: Ctx
+    -> Ptr RecSig65
+    -> Ptr Msg32
+    -> Ptr SecKey32
+    -> FunPtr (NonceFun a)
+    -> Ptr a -- ^ nonce data
+    -> IO Ret
+
+foreign import ccall safe
+    "secp256k1_recovery.h secp256k1_ecdsa_recover"
+    ecdsaRecover
+    :: Ctx
+    -> Ptr PubKey64
+    -> Ptr RecSig65
+    -> Ptr Msg32
     -> IO Ret

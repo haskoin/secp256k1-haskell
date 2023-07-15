@@ -9,6 +9,7 @@ import Data.ByteString.Base16 (decodeBase16, encodeBase16)
 import qualified Data.ByteString.Char8 as B8
 import Data.Either (fromRight)
 import Data.Maybe (fromMaybe, isNothing)
+import Data.Serialize (decode, encode)
 import Data.String (fromString)
 import Data.String.Conversions (cs)
 import Test.HUnit (Assertion, assertEqual)
@@ -67,6 +68,20 @@ spec = do
     it "combine public keys" $ property combinePubKeyTest
     it "can't combine 0 public keys" $ property combinePubKeyEmptyListTest
     it "negates tweak" $ property negateTweakTest
+  describe "recovery" $ do
+    it "recovers public keys" $
+        property recoverTest
+    it "recovers key from signed message" $
+        property signRecMsgTest
+    it "does not recover bad public keys" $
+        property badRecoverTest
+    it "detects bad recoverable signature" $
+        property badRecSignatureTest
+    it "serializes compact recoverable signature" $
+        property serializeCompactRecSigTest
+    it "shows and reads recoverable signature" $
+        property (showReadRecSig :: (SecKey, Msg) -> Bool)
+    it "reads recoverable signature from string" $ property $ isStringRecSig
 
 hexToBytes :: String -> BS.ByteString
 hexToBytes = decodeBase16 . assertBase16 . B8.pack
@@ -81,6 +96,12 @@ isStringSig (k, m) = g == fromString (cs hex)
   where
     g = signMsg k m
     hex = extractBase16 . encodeBase16 $ exportSig g
+
+isStringRecSig :: (SecKey, Msg) -> Bool
+isStringRecSig (k, m) = g == fromString (cs hex)
+  where
+    g = signRecMsg k m
+    hex = extractBase16 . encodeBase16 . encode $ exportCompactRecSig g
 
 isStringMsg :: Msg -> Bool
 isStringMsg m = m == fromString (cs m')
@@ -109,6 +130,11 @@ showReadSig (k, m) = showRead sig
   where
     sig = signMsg k m
 
+showReadRecSig :: (SecKey, Msg) -> Bool
+showReadRecSig (k, m) = showRead recSig
+  where
+    recSig = signRecMsg k m
+
 showRead :: (Show a, Read a, Eq a) => a -> Bool
 showRead x = read (show x) == x
 
@@ -123,10 +149,35 @@ signMsgParTest xs = P.runPar $ do
   ys <- mapM (P.spawnP . signMsgTest) xs
   and <$> mapM P.get ys
 
+signRecMsgTest :: (Msg, SecKey) -> Bool
+signRecMsgTest (fm, fk) = verifySig fp fg fm
+  where
+    fp = derivePubKey fk
+    fg = convertRecSig $ signRecMsg fk fm
+
+recoverTest :: (Msg, SecKey) -> Bool
+recoverTest (fm, fk) = recover fg fm == Just fp
+  where
+    fp = derivePubKey fk
+    fg = signRecMsg fk fm
+
+badRecoverTest :: (Msg, SecKey, Msg) -> Property
+badRecoverTest (fm, fk, fm') =
+  fm' /= fm ==> fp' /= Nothing ==> fp' /= Just fp
+  where
+    fg  = signRecMsg fk fm
+    fp  = derivePubKey fk
+    fp' = recover fg fm'
+
 badSignatureTest :: (Msg, SecKey, PubKey) -> Bool
 badSignatureTest (fm, fk, fp) = not $ verifySig fp fg fm
   where
     fg = signMsg fk fm
+
+badRecSignatureTest :: (Msg, SecKey, PubKey) -> Bool
+badRecSignatureTest (fm, fk, fp) = not $ verifySig fp fg fm
+  where
+    fg = convertRecSig $ signRecMsg fk fm
 
 normalizeSigTest :: (Msg, SecKey) -> Bool
 normalizeSigTest (fm, fk) = isNothing sig
@@ -165,6 +216,14 @@ serializeCompactSigTest (fm, fk) =
     Nothing -> False
   where
     fg = signMsg fk fm
+
+serializeCompactRecSigTest :: (Msg, SecKey) -> Bool
+serializeCompactRecSigTest (fm, fk) =
+  case importCompactRecSig $ exportCompactRecSig fg of
+    Just fg' -> fg == fg'
+    Nothing  -> False
+  where
+    fg = signRecMsg fk fm
 
 serializeSecKeyTest :: SecKey -> Bool
 serializeSecKeyTest fk =

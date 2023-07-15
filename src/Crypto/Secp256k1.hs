@@ -1,8 +1,8 @@
 {-# LANGUAGE DeriveGeneric #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
-{-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 
 -- |
 -- Module      : Crypto.Secp256k1
@@ -46,6 +46,15 @@ module Crypto.Secp256k1
     exportCompactSig,
     importCompactSig,
 
+    -- ** Recovery
+    RecSig,
+    CompactRecSig (..),
+    importCompactRecSig,
+    exportCompactRecSig,
+    convertRecSig,
+    signRecMsg,
+    recover,
+
     -- * Addition & Multiplication
     Tweak,
     tweak,
@@ -70,11 +79,16 @@ import Data.Hashable (Hashable (..))
 import Data.Maybe (fromJust, fromMaybe, isJust)
 import Data.Serialize
   ( Serialize (..),
+    decode,
+    encode,
     getByteString,
+    getWord8,
     putByteString,
+    putWord8,
   )
 import Data.String (IsString (..))
 import Data.String.Conversions (ConvertibleStrings, cs)
+import Data.Word (Word8)
 import Foreign
   ( alloca,
     allocaArray,
@@ -120,6 +134,17 @@ newtype Tweak = Tweak {getTweak :: ByteString}
 newtype CompactSig = CompactSig {getCompactSig :: ByteString}
   deriving (Eq, Generic, NFData)
 
+newtype RecSig = RecSig {getRecSig :: ByteString}
+  deriving (Eq, Generic, NFData)
+
+data CompactRecSig = CompactRecSig
+  { getCompactRecSigRS :: !ByteString,
+    getCompactRecSigV :: {-# UNPACK #-} !Word8
+  }
+  deriving (Eq, Generic)
+
+instance NFData CompactRecSig
+
 instance Serialize PubKey where
   put (PubKey bs) = putByteString bs
   get = PubKey <$> getByteString 64
@@ -143,6 +168,14 @@ instance Serialize Tweak where
 instance Serialize CompactSig where
   put (CompactSig bs) = putByteString bs
   get = CompactSig <$> getByteString 64
+
+instance Serialize RecSig where
+  put (RecSig bs) = putByteString bs
+  get = RecSig <$> getByteString 65
+
+instance Serialize CompactRecSig where
+  put (CompactRecSig bs v) = putByteString bs <> putWord8 v
+  get = CompactRecSig <$> getByteString 64 <*> getWord8
 
 decodeHex :: (ConvertibleStrings a ByteString) => a -> Maybe ByteString
 decodeHex str =
@@ -477,3 +510,103 @@ instance Arbitrary SecKey where
 
 instance Arbitrary PubKey where
   arbitrary = derivePubKey <$> arbitrary
+
+recSigFromString :: String -> Maybe RecSig
+recSigFromString str = do
+  bs <- decodeHex str
+  rs <- either (const Nothing) Just $ decode bs
+  importCompactRecSig rs
+
+instance Hashable RecSig where
+  i `hashWithSalt` s = i `hashWithSalt` encode (exportCompactRecSig s)
+
+instance Read RecSig where
+  readPrec = parens $ do
+    String str <- lexP
+    maybe pfail return $ recSigFromString str
+
+instance IsString RecSig where
+  fromString = fromMaybe e . recSigFromString
+    where
+      e = error "Could not decode signature from hex string"
+
+instance Show RecSig where
+  showsPrec _ = shows . extractBase16 . encodeBase16 . encode . exportCompactRecSig
+
+-- | Parse a compact ECDSA signature (64 bytes + recovery id).
+importCompactRecSig :: CompactRecSig -> Maybe RecSig
+importCompactRecSig (CompactRecSig sig_rs sig_v)
+  | sig_v `notElem` [0, 1, 2, 3] = Nothing
+  | otherwise = unsafePerformIO $
+      unsafeUseByteString sig_rs $ \(sig_rs_ptr, _) -> do
+        out_rec_sig_ptr <- mallocBytes 65
+        ret <-
+          ecdsaRecoverableSignatureParseCompact
+            ctx
+            out_rec_sig_ptr
+            sig_rs_ptr
+            (fromIntegral sig_v)
+        if isSuccess ret
+          then do
+            out_bs <- unsafePackByteString (out_rec_sig_ptr, 65)
+            return (Just (RecSig out_bs))
+          else do
+            free out_rec_sig_ptr
+            return Nothing
+
+-- | Serialize an ECDSA signature in compact format (64 bytes + recovery id).
+exportCompactRecSig :: RecSig -> CompactRecSig
+exportCompactRecSig (RecSig rec_sig_bs) = unsafePerformIO $
+  unsafeUseByteString rec_sig_bs $ \(rec_sig_ptr, _) ->
+    alloca $ \out_v_ptr -> do
+      out_sig_ptr <- mallocBytes 64
+      ret <-
+        ecdsaRecoverableSignatureSerializeCompact
+          ctx
+          out_sig_ptr
+          out_v_ptr
+          rec_sig_ptr
+      unless (isSuccess ret) $ do
+        free out_sig_ptr
+        error "Could not obtain compact signature"
+      out_bs <- unsafePackByteString (out_sig_ptr, 64)
+      out_v <- peek out_v_ptr
+      return $ CompactRecSig out_bs (fromIntegral out_v)
+
+-- | Convert a recoverable signature into a normal signature.
+convertRecSig :: RecSig -> Sig
+convertRecSig (RecSig rec_sig_bs) = unsafePerformIO $
+  unsafeUseByteString rec_sig_bs $ \(rec_sig_ptr, _) -> do
+    out_ptr <- mallocBytes 64
+    ret <- ecdsaRecoverableSignatureConvert ctx out_ptr rec_sig_ptr
+    unless (isSuccess ret) $
+      error "Could not convert a recoverable signature"
+    out_bs <- unsafePackByteString (out_ptr, 64)
+    return $ Sig out_bs
+
+-- | Create a recoverable ECDSA signature.
+signRecMsg :: SecKey -> Msg -> RecSig
+signRecMsg (SecKey sec_key) (Msg m) = unsafePerformIO $
+  unsafeUseByteString sec_key $ \(sec_key_ptr, _) ->
+    unsafeUseByteString m $ \(msg_ptr, _) -> do
+      rec_sig_ptr <- mallocBytes 65
+      ret <- ecdsaSignRecoverable ctx rec_sig_ptr msg_ptr sec_key_ptr nullFunPtr nullPtr
+      unless (isSuccess ret) $ do
+        free rec_sig_ptr
+        error "could not sign message"
+      RecSig <$> unsafePackByteString (rec_sig_ptr, 65)
+
+-- | Recover an ECDSA public key from a signature.
+recover :: RecSig -> Msg -> Maybe PubKey
+recover (RecSig rec_sig) (Msg m) = unsafePerformIO $
+  unsafeUseByteString rec_sig $ \(rec_sig_ptr, _) ->
+    unsafeUseByteString m $ \(msg_ptr, _) -> do
+      pub_key_ptr <- mallocBytes 64
+      ret <- ecdsaRecover ctx pub_key_ptr rec_sig_ptr msg_ptr
+      if isSuccess ret
+        then do
+          pub_key_bs <- unsafePackByteString (pub_key_ptr, 64)
+          return (Just (PubKey pub_key_bs))
+        else do
+          free pub_key_ptr
+          return Nothing
