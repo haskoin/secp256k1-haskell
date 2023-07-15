@@ -55,7 +55,8 @@ type NonceFun a =
   CInt ->
   IO CInt
 
-type Ctx = Ptr LCtx
+
+newtype Ctx = Ctx {getCtx :: Ptr LCtx}
 
 verify :: CtxFlags
 verify = 0x0101
@@ -103,21 +104,21 @@ withRandomSeed go = do
 foreign import ccall safe "secp256k1.h secp256k1_context_create"
   contextCreate ::
     CtxFlags ->
-    IO Ctx
+    IO (Ptr LCtx)
 
 foreign import ccall safe "secp256k1.h secp256k1_context_clone"
   contextClone ::
-    Ctx ->
-    IO Ctx
+    Ptr LCtx ->
+    IO (Ptr LCtx)
 
 foreign import ccall safe "secp256k1.h secp256k1_context_destroy"
   contextDestroy ::
-    Ctx ->
+    Ptr LCtx ->
     IO ()
 
 foreign import ccall safe "secp256k1.h secp256k1_context_set_illegal_callback"
   setIllegalCallback ::
-    Ctx ->
+    Ptr LCtx ->
     -- | message, data
     FunPtr (CString -> Ptr a -> IO ()) ->
     -- | data
@@ -126,7 +127,7 @@ foreign import ccall safe "secp256k1.h secp256k1_context_set_illegal_callback"
 
 foreign import ccall safe "secp256k1.h secp256k1_context_set_error_callback"
   setErrorCallback ::
-    Ctx ->
+    Ptr LCtx ->
     -- | message, data
     FunPtr (CString -> Ptr a -> IO ()) ->
     -- | data
@@ -135,7 +136,7 @@ foreign import ccall safe "secp256k1.h secp256k1_context_set_error_callback"
 
 foreign import ccall safe "secp256k1.h secp256k1_ec_pubkey_parse"
   ecPubKeyParse ::
-    Ctx ->
+    Ptr LCtx ->
     Ptr PubKey64 ->
     -- | encoded public key array
     Ptr CUChar ->
@@ -145,7 +146,7 @@ foreign import ccall safe "secp256k1.h secp256k1_ec_pubkey_parse"
 
 foreign import ccall safe "secp256k1.h secp256k1_ec_pubkey_serialize"
   ecPubKeySerialize ::
-    Ctx ->
+    Ptr LCtx ->
     -- | array for encoded public key, must be large enough
     Ptr CUChar ->
     -- | size of encoded public key, will be updated
@@ -156,14 +157,14 @@ foreign import ccall safe "secp256k1.h secp256k1_ec_pubkey_serialize"
 
 foreign import ccall safe "secp256k1.h secp256k1_ecdsa_signature_parse_compact"
   ecdsaSignatureParseCompact ::
-    Ctx ->
+    Ptr LCtx ->
     Ptr Sig64 ->
     Ptr Compact64 ->
     IO Ret
 
 foreign import ccall safe "secp256k1.h secp256k1_ecdsa_signature_parse_der"
   ecdsaSignatureParseDer ::
-    Ctx ->
+    Ptr LCtx ->
     Ptr Sig64 ->
     -- | encoded DER signature
     Ptr CUChar ->
@@ -173,7 +174,7 @@ foreign import ccall safe "secp256k1.h secp256k1_ecdsa_signature_parse_der"
 
 foreign import ccall safe "secp256k1.h secp256k1_ecdsa_signature_serialize_der"
   ecdsaSignatureSerializeDer ::
-    Ctx ->
+    Ptr LCtx ->
     -- | array for encoded signature, must be large enough
     Ptr CUChar ->
     -- | size of encoded signature, will be updated
@@ -183,14 +184,14 @@ foreign import ccall safe "secp256k1.h secp256k1_ecdsa_signature_serialize_der"
 
 foreign import ccall safe "secp256k1.h secp256k1_ecdsa_signature_serialize_compact"
   ecdsaSignatureSerializeCompact ::
-    Ctx ->
+    Ptr LCtx ->
     Ptr Compact64 ->
     Ptr Sig64 ->
     IO Ret
 
 foreign import ccall safe "secp256k1.h secp256k1_ecdsa_verify"
   ecdsaVerify ::
-    Ctx ->
+    Ptr LCtx ->
     Ptr Sig64 ->
     Ptr Msg32 ->
     Ptr PubKey64 ->
@@ -198,7 +199,7 @@ foreign import ccall safe "secp256k1.h secp256k1_ecdsa_verify"
 
 foreign import ccall safe "secp256k1.h secp256k1_ecdsa_signature_normalize"
   ecdsaSignatureNormalize ::
-    Ctx ->
+    Ptr LCtx ->
     -- | output
     Ptr Sig64 ->
     -- | input
@@ -207,7 +208,7 @@ foreign import ccall safe "secp256k1.h secp256k1_ecdsa_signature_normalize"
 
 foreign import ccall safe "secp256k1.h secp256k1_ecdsa_sign"
   ecdsaSign ::
-    Ctx ->
+    Ptr LCtx ->
     Ptr Sig64 ->
     Ptr Msg32 ->
     Ptr SecKey32 ->
@@ -218,60 +219,60 @@ foreign import ccall safe "secp256k1.h secp256k1_ecdsa_sign"
 
 foreign import ccall safe "secp256k1.h secp256k1_ec_seckey_verify"
   ecSecKeyVerify ::
-    Ctx ->
+    Ptr LCtx ->
     Ptr SecKey32 ->
     IO Ret
 
 foreign import ccall safe "secp256k1.h secp256k1_ec_pubkey_create"
   ecPubKeyCreate ::
-    Ctx ->
+    Ptr LCtx ->
     Ptr PubKey64 ->
     Ptr SecKey32 ->
     IO Ret
 
 foreign import ccall safe "secp256k1.h secp256k1_ec_privkey_tweak_add"
   ecSecKeyTweakAdd ::
-    Ctx ->
+    Ptr LCtx ->
     Ptr SecKey32 ->
     Ptr Tweak32 ->
     IO Ret
 
 foreign import ccall safe "secp256k1.h secp256k1_ec_privkey_negate"
   ecTweakNegate ::
-    Ctx ->
+    Ptr LCtx ->
     Ptr Tweak32 ->
     IO Ret
 
 foreign import ccall unsafe "secp256k1.h secp256k1_ec_pubkey_tweak_add"
   ecPubKeyTweakAdd ::
-    Ctx ->
+    Ptr LCtx ->
     Ptr PubKey64 ->
     Ptr Tweak32 ->
     IO Ret
 
 foreign import ccall safe "secp256k1.h secp256k1_ec_privkey_tweak_mul"
   ecSecKeyTweakMul ::
-    Ctx ->
+    Ptr LCtx ->
     Ptr SecKey32 ->
     Ptr Tweak32 ->
     IO Ret
 
 foreign import ccall safe "secp256k1.h secp256k1_ec_pubkey_tweak_mul"
   ecPubKeyTweakMul ::
-    Ctx ->
+    Ptr LCtx ->
     Ptr PubKey64 ->
     Ptr Tweak32 ->
     IO Ret
 
 foreign import ccall safe "secp256k1.h secp256k1_context_randomize"
   contextRandomize ::
-    Ctx ->
+    Ptr LCtx ->
     Ptr Seed32 ->
     IO Ret
 
 foreign import ccall safe "secp256k1.h secp256k1_ec_pubkey_combine"
   ecPubKeyCombine ::
-    Ctx ->
+    Ptr LCtx ->
     -- | pointer to public key storage
     Ptr PubKey64 ->
     -- | pointer to array of public keys

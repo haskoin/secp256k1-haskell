@@ -80,11 +80,6 @@ import Data.ByteString qualified as BS
 import Data.ByteString.Base16 (decodeBase16, encodeBase16, isBase16)
 import Data.Hashable (Hashable (..))
 import Data.Maybe (fromJust, fromMaybe, isJust)
-import Data.Serialize
-  ( Serialize (..),
-    getByteString,
-    putByteString,
-  )
 import Data.String (IsString (..))
 import Data.String.Conversions (ConvertibleStrings, cs)
 import Foreign
@@ -131,30 +126,6 @@ newtype Tweak = Tweak {getTweak :: ByteString}
 
 newtype CompactSig = CompactSig {getCompactSig :: ByteString}
   deriving (Eq, Generic, Hashable, NFData)
-
-instance Serialize PubKey where
-  put (PubKey bs) = putByteString bs
-  get = PubKey <$> getByteString 64
-
-instance Serialize Msg where
-  put (Msg m) = putByteString m
-  get = Msg <$> getByteString 32
-
-instance Serialize Sig where
-  put (Sig bs) = putByteString bs
-  get = Sig <$> getByteString 64
-
-instance Serialize SecKey where
-  put (SecKey bs) = putByteString bs
-  get = SecKey <$> getByteString 32
-
-instance Serialize Tweak where
-  put (Tweak bs) = putByteString bs
-  get = Tweak <$> getByteString 32
-
-instance Serialize CompactSig where
-  put (CompactSig bs) = putByteString bs
-  get = CompactSig <$> getByteString 64
 
 decodeHex :: (ConvertibleStrings a ByteString) => a -> Maybe ByteString
 decodeHex str =
@@ -228,27 +199,27 @@ instance Show Tweak where
   showsPrec _ = shows . extractBase16 . encodeBase16 . getTweak
 
 randomizeContext :: Ctx -> IO ()
-randomizeContext ctx = do
+randomizeContext (Ctx ctx) = do
   ret <- withRandomSeed $ contextRandomize ctx
   unless (isSuccess ret) $ error "Could not randomize context"
 
 createContext :: IO Ctx
-createContext = contextCreate signVerify
+createContext = Ctx <$> contextCreate signVerify
 
 cloneContext :: Ctx -> IO Ctx
-cloneContext = contextClone
+cloneContext = fmap Ctx . contextClone . getCtx
 
 destroyContext :: Ctx -> IO ()
-destroyContext = contextDestroy
+destroyContext = contextDestroy . getCtx
 
 withContext :: (Ctx -> IO a) -> IO a
 withContext = bracket create destroy
   where
     create = do
-      ctx <- contextCreate signVerify
+      ctx <- createContext
       randomizeContext ctx
       return ctx
-    destroy = contextDestroy
+    destroy = destroyContext
 
 sig :: ByteString -> Maybe Sig
 sig bs
@@ -280,7 +251,7 @@ compactSig bs
 -- | Convert signature to a normalized lower-S form. 'Nothing' indicates that it
 -- was already normal.
 normalizeSig :: Ctx -> Sig -> Maybe Sig
-normalizeSig ctx (Sig sig) = unsafePerformIO $
+normalizeSig (Ctx ctx) (Sig sig) = unsafePerformIO $
   unsafeUseByteString sig $ \(sig_in, _) -> do
     sig_out <- mallocBytes 64
     ret <- ecdsaSignatureNormalize ctx sig_out sig_in
@@ -300,7 +271,7 @@ tweak bs
 
 -- | Import DER-encoded public key.
 importPubKey :: Ctx -> ByteString -> Maybe PubKey
-importPubKey ctx bs
+importPubKey (Ctx ctx) bs
   | BS.null bs = Nothing
   | otherwise = unsafePerformIO $
       unsafeUseByteString bs $ \(input, len) -> do
@@ -316,7 +287,7 @@ importPubKey ctx bs
 
 -- | Encode public key as DER. First argument 'True' for compressed output.
 exportPubKey :: Ctx -> Bool -> PubKey -> ByteString
-exportPubKey ctx compress (PubKey in_bs) = unsafePerformIO $
+exportPubKey (Ctx ctx) compress (PubKey in_bs) = unsafePerformIO $
   unsafeUseByteString in_bs $ \(in_ptr, _) ->
     alloca $ \len_ptr ->
       allocaBytes len $ \out_ptr -> do
@@ -330,7 +301,7 @@ exportPubKey ctx compress (PubKey in_bs) = unsafePerformIO $
     flags = if compress then compressed else uncompressed
 
 exportCompactSig :: Ctx -> Sig -> CompactSig
-exportCompactSig ctx (Sig sig_bs) = unsafePerformIO $
+exportCompactSig (Ctx ctx) (Sig sig_bs) = unsafePerformIO $
   unsafeUseByteString sig_bs $ \(sig_ptr, _) -> do
     out_ptr <- mallocBytes 64
     ret <- ecdsaSignatureSerializeCompact ctx out_ptr sig_ptr
@@ -341,7 +312,7 @@ exportCompactSig ctx (Sig sig_bs) = unsafePerformIO $
     return $ CompactSig out_bs
 
 importCompactSig :: Ctx -> CompactSig -> Maybe Sig
-importCompactSig ctx (CompactSig compact_sig) = unsafePerformIO $
+importCompactSig (Ctx ctx) (CompactSig compact_sig) = unsafePerformIO $
   unsafeUseByteString compact_sig $ \(compact_ptr, _) -> do
     out_sig <- mallocBytes 64
     ret <- ecdsaSignatureParseCompact ctx out_sig compact_ptr
@@ -355,7 +326,7 @@ importCompactSig ctx (CompactSig compact_sig) = unsafePerformIO $
 
 -- | Import DER-encoded signature.
 importSig :: Ctx -> ByteString -> Maybe Sig
-importSig ctx bs
+importSig (Ctx ctx) bs
   | BS.null bs = Nothing
   | otherwise = unsafePerformIO $
       unsafeUseByteString bs $ \(in_ptr, in_len) -> do
@@ -371,7 +342,7 @@ importSig ctx bs
 
 -- | Encode signature as strict DER.
 exportSig :: Ctx -> Sig -> ByteString
-exportSig ctx (Sig in_sig) = unsafePerformIO $
+exportSig (Ctx ctx) (Sig in_sig) = unsafePerformIO $
   unsafeUseByteString in_sig $ \(in_ptr, _) ->
     alloca $ \out_len ->
       allocaBytes 72 $ \out_ptr -> do
@@ -383,14 +354,14 @@ exportSig ctx (Sig in_sig) = unsafePerformIO $
 
 -- | Verify message signature. 'True' means that the signature is correct.
 verifySig :: Ctx -> PubKey -> Sig -> Msg -> Bool
-verifySig ctx (PubKey pub_key) (Sig sig) (Msg m) = unsafePerformIO $
+verifySig (Ctx ctx) (PubKey pub_key) (Sig sig) (Msg m) = unsafePerformIO $
   unsafeUseByteString pub_key $ \(pub_key_ptr, _) ->
     unsafeUseByteString sig $ \(sig_ptr, _) ->
       unsafeUseByteString m $ \(msg_ptr, _) ->
         isSuccess <$> ecdsaVerify ctx sig_ptr msg_ptr pub_key_ptr
 
 signMsg :: Ctx -> SecKey -> Msg -> Sig
-signMsg ctx (SecKey sec_key) (Msg m) = unsafePerformIO $
+signMsg (Ctx ctx) (SecKey sec_key) (Msg m) = unsafePerformIO $
   unsafeUseByteString sec_key $ \(sec_key_ptr, _) ->
     unsafeUseByteString m $ \(msg_ptr, _) -> do
       sig_ptr <- mallocBytes 64
@@ -401,7 +372,7 @@ signMsg ctx (SecKey sec_key) (Msg m) = unsafePerformIO $
       Sig <$> unsafePackByteString (sig_ptr, 64)
 
 derivePubKey :: Ctx -> SecKey -> PubKey
-derivePubKey ctx (SecKey sec_key) = unsafePerformIO $
+derivePubKey (Ctx ctx) (SecKey sec_key) = unsafePerformIO $
   unsafeUseByteString sec_key $ \(sec_key_ptr, _) -> do
     pub_key_ptr <- mallocBytes 64
     ret <- ecPubKeyCreate ctx pub_key_ptr sec_key_ptr
@@ -412,7 +383,7 @@ derivePubKey ctx (SecKey sec_key) = unsafePerformIO $
 
 -- | Add tweak to secret key.
 tweakAddSecKey :: Ctx -> SecKey -> Tweak -> Maybe SecKey
-tweakAddSecKey ctx (SecKey sec_key) (Tweak t) = unsafePerformIO $
+tweakAddSecKey (Ctx ctx) (SecKey sec_key) (Tweak t) = unsafePerformIO $
   unsafeUseByteString new_bs $ \(sec_key_ptr, _) ->
     unsafeUseByteString t $ \(tweak_ptr, _) -> do
       ret <- ecSecKeyTweakAdd ctx sec_key_ptr tweak_ptr
@@ -424,7 +395,7 @@ tweakAddSecKey ctx (SecKey sec_key) (Tweak t) = unsafePerformIO $
 
 -- | Multiply secret key by tweak.
 tweakMulSecKey :: Ctx -> SecKey -> Tweak -> Maybe SecKey
-tweakMulSecKey ctx (SecKey sec_key) (Tweak t) = unsafePerformIO $
+tweakMulSecKey (Ctx ctx) (SecKey sec_key) (Tweak t) = unsafePerformIO $
   unsafeUseByteString new_bs $ \(sec_key_ptr, _) ->
     unsafeUseByteString t $ \(tweak_ptr, _) -> do
       ret <- ecSecKeyTweakMul ctx sec_key_ptr tweak_ptr
@@ -436,7 +407,7 @@ tweakMulSecKey ctx (SecKey sec_key) (Tweak t) = unsafePerformIO $
 
 -- | Add tweak to public key. Tweak is multiplied first by G to obtain a point.
 tweakAddPubKey :: Ctx -> PubKey -> Tweak -> Maybe PubKey
-tweakAddPubKey ctx (PubKey pub_key) (Tweak t) = unsafePerformIO $
+tweakAddPubKey (Ctx ctx) (PubKey pub_key) (Tweak t) = unsafePerformIO $
   unsafeUseByteString new_bs $ \(pub_key_ptr, _) ->
     unsafeUseByteString t $ \(tweak_ptr, _) -> do
       ret <- ecPubKeyTweakAdd ctx pub_key_ptr tweak_ptr
@@ -449,7 +420,7 @@ tweakAddPubKey ctx (PubKey pub_key) (Tweak t) = unsafePerformIO $
 -- | Multiply public key by tweak. Tweak is multiplied first by G to obtain a
 -- point.
 tweakMulPubKey :: Ctx -> PubKey -> Tweak -> Maybe PubKey
-tweakMulPubKey ctx (PubKey pub_key) (Tweak t) = unsafePerformIO $
+tweakMulPubKey (Ctx ctx) (PubKey pub_key) (Tweak t) = unsafePerformIO $
   unsafeUseByteString new_bs $ \(pub_key_ptr, _) ->
     unsafeUseByteString t $ \(tweak_ptr, _) -> do
       ret <- ecPubKeyTweakMul ctx pub_key_ptr tweak_ptr
@@ -462,7 +433,7 @@ tweakMulPubKey ctx (PubKey pub_key) (Tweak t) = unsafePerformIO $
 -- | Add multiple public keys together.
 combinePubKeys :: Ctx -> [PubKey] -> Maybe PubKey
 combinePubKeys _ [] = Nothing
-combinePubKeys ctx pubs = unsafePerformIO $
+combinePubKeys (Ctx ctx) pubs = unsafePerformIO $
   pointers [] pubs $ \ps ->
     allocaArray (length ps) $ \a -> do
       out <- mallocBytes 64
@@ -482,7 +453,7 @@ combinePubKeys ctx pubs = unsafePerformIO $
         pointers (p : ps) pub_keys f
 
 tweakNegate :: Ctx -> Tweak -> Maybe Tweak
-tweakNegate ctx (Tweak t) = unsafePerformIO $
+tweakNegate (Ctx ctx) (Tweak t) = unsafePerformIO $
   unsafeUseByteString new $ \(out, _) -> do
     ret <- ecTweakNegate ctx out
     if isSuccess ret
