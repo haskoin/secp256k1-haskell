@@ -3,6 +3,9 @@
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE NoFieldSelectors #-}
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 
 -- |
 -- Module      : Crypto.Secp256k1
@@ -14,7 +17,7 @@
 -- Crytpographic functions from Bitcoin’s secp256k1 library.
 module Crypto.Secp256k1
   ( -- * Context
-    Ctx,
+    Ctx (..),
     withContext,
     randomizeContext,
     createContext,
@@ -22,25 +25,22 @@ module Crypto.Secp256k1
     destroyContext,
 
     -- * Messages
-    Msg,
+    Msg (..),
     msg,
-    getMsg,
 
     -- * Secret Keys
-    SecKey,
+    SecKey (..),
     secKey,
-    getSecKey,
     derivePubKey,
 
     -- * Public Keys
-    PubKey,
+    PubKey (..),
     pubKey,
-    getPubKey,
     importPubKey,
     exportPubKey,
 
     -- * Signatures
-    Sig,
+    Sig (..),
     sig,
     signMsg,
     verifySig,
@@ -51,16 +51,14 @@ module Crypto.Secp256k1
     exportSig,
 
     -- ** Compact
-    CompactSig,
-    getCompactSig,
+    CompactSig (..),
     compactSig,
     exportCompactSig,
     importCompactSig,
 
     -- * Addition & Multiplication
-    Tweak,
+    Tweak (..),
     tweak,
-    getTweak,
     tweakAddSecKey,
     tweakMulSecKey,
     tweakAddPubKey,
@@ -109,22 +107,22 @@ import Text.Read
     readPrec,
   )
 
-newtype PubKey = PubKey {getPubKey :: ByteString}
+newtype PubKey = PubKey {get :: ByteString}
   deriving (Eq, Generic, Hashable, NFData)
 
-newtype Msg = Msg {getMsg :: ByteString}
+newtype Msg = Msg {get :: ByteString}
   deriving (Eq, Generic, Hashable, NFData)
 
-newtype Sig = Sig {getSig :: ByteString}
+newtype Sig = Sig {get :: ByteString}
   deriving (Eq, Generic, Hashable, NFData)
 
-newtype SecKey = SecKey {getSecKey :: ByteString}
+newtype SecKey = SecKey {get :: ByteString}
   deriving (Eq, Generic, Hashable, NFData)
 
-newtype Tweak = Tweak {getTweak :: ByteString}
+newtype Tweak = Tweak {get :: ByteString}
   deriving (Eq, Generic, Hashable, NFData)
 
-newtype CompactSig = CompactSig {getCompactSig :: ByteString}
+newtype CompactSig = CompactSig {get :: ByteString}
   deriving (Eq, Generic, Hashable, NFData)
 
 decodeHex :: (ConvertibleStrings a ByteString) => a -> Maybe ByteString
@@ -144,7 +142,7 @@ instance IsString PubKey where
       e = error "Could not decode public key from hex string"
 
 instance Show PubKey where
-  showsPrec _ = shows . extractBase16 . encodeBase16 . getPubKey
+  showsPrec _ = shows . extractBase16 . encodeBase16 . (.get)
 
 instance Read Msg where
   readPrec = parens $ do
@@ -157,7 +155,7 @@ instance IsString Msg where
       e = error "Could not decode message from hex string"
 
 instance Show Sig where
-  showsPrec _ = shows . extractBase16 . encodeBase16 . getSig
+  showsPrec _ = shows . extractBase16 . encodeBase16 . (.get)
 
 instance Read Sig where
   readPrec = parens $ do
@@ -170,7 +168,7 @@ instance IsString Sig where
       e = error "Could not decode signature from hex string"
 
 instance Show Msg where
-  showsPrec _ = shows . extractBase16 . encodeBase16 . getMsg
+  showsPrec _ = shows . extractBase16 . encodeBase16 . (.get)
 
 instance Read SecKey where
   readPrec = parens $ do
@@ -183,7 +181,7 @@ instance IsString SecKey where
       e = error "Colud not decode secret key from hex string"
 
 instance Show SecKey where
-  showsPrec _ = shows . extractBase16 . encodeBase16 . getSecKey
+  showsPrec _ = shows . extractBase16 . encodeBase16 . (.get)
 
 instance Read Tweak where
   readPrec = parens $ do
@@ -196,7 +194,7 @@ instance IsString Tweak where
       e = error "Could not decode tweak from hex string"
 
 instance Show Tweak where
-  showsPrec _ = shows . extractBase16 . encodeBase16 . getTweak
+  showsPrec _ = shows . extractBase16 . encodeBase16 . (.get)
 
 randomizeContext :: Ctx -> IO ()
 randomizeContext (Ctx ctx) = do
