@@ -5,7 +5,7 @@ cabal-version: 2.0
 -- see: https://github.com/sol/hpack
 
 name:           secp256k1-haskell
-version:        1.0.0
+version:        1.0.1
 synopsis:       Bindings for secp256k1
 description:    Sign and verify signatures using the secp256k1 library.
 category:       Crypto
@@ -28,7 +28,11 @@ source-repository head
 library
   exposed-modules:
       Crypto.Secp256k1
-      Crypto.Secp256k1.Internal
+      Crypto.Secp256k1.Internal.Base
+      Crypto.Secp256k1.Internal.BaseOps
+      Crypto.Secp256k1.Internal.Context
+      Crypto.Secp256k1.Internal.ForeignTypes
+      Crypto.Secp256k1.Internal.Util
       Paths_secp256k1_haskell
   autogen-modules:
       Paths_secp256k1_haskell

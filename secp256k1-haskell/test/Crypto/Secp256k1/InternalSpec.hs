@@ -5,7 +5,10 @@ module Crypto.Secp256k1.InternalSpec (spec) where
 import Control.Exception
 import Control.Monad
 import Control.Monad.Trans
-import Crypto.Secp256k1.Internal
+import Crypto.Secp256k1.Internal.BaseOps
+import Crypto.Secp256k1.Internal.Context
+import Crypto.Secp256k1.Internal.ForeignTypes
+import Crypto.Secp256k1.Internal.Util
 import Data.Base16.Types (assertBase16)
 import Data.ByteString
   ( ByteString,
@@ -14,7 +17,6 @@ import Data.ByteString
     useAsCStringLen,
   )
 import Data.ByteString.Base16 (decodeBase16)
-import Data.Either (fromRight)
 import Foreign
 import System.Entropy
 import Test.HUnit (Assertion, assertBool, assertEqual)

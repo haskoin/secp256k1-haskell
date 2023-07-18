@@ -4,6 +4,12 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
+## [1.0.1]
+
+### Changed
+
+- Reworked the structure of the Internal modules to allow having add-on packages for optional libsecp256k1 features.
+
 ## [1.0.0] - 2023-07-28
 
 ### Changed
