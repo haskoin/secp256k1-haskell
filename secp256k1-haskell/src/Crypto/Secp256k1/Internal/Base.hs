@@ -15,71 +15,51 @@
 -- Portability : POSIX
 --
 -- Crytpographic functions from Bitcoin’s secp256k1 library.
-module Crypto.Secp256k1
-  ( -- * Context
-    Ctx (..),
-    withContext,
-    randomizeContext,
-    createContext,
-    cloneContext,
-    destroyContext,
-
-    -- * Messages
-    Msg (..),
-    msg,
-
-    -- * Secret Keys
-    SecKey (..),
-    secKey,
-    derivePubKey,
-
-    -- * Public Keys
-    PubKey (..),
-    pubKey,
-    importPubKey,
-    exportPubKey,
-
-    -- * Signatures
-    Sig (..),
-    sig,
-    signMsg,
-    verifySig,
-    normalizeSig,
-
-    -- ** DER
-    importSig,
-    exportSig,
-
-    -- ** Compact
-    CompactSig (..),
-    compactSig,
-    exportCompactSig,
-    importCompactSig,
-
-    -- * Addition & Multiplication
-    Tweak (..),
-    tweak,
-    tweakAddSecKey,
-    tweakMulSecKey,
-    tweakAddPubKey,
-    tweakMulPubKey,
-    combinePubKeys,
-    tweakNegate,
-  )
-where
+--
+-- The API for this module may change at any time. This is an internal module only
+-- exposed for hacking and experimentation.
+module Crypto.Secp256k1.Internal.Base where
 
 import Control.DeepSeq (NFData)
 import Control.Exception (bracket)
 import Control.Monad (replicateM, unless, (<=<))
-import Crypto.Secp256k1.Internal
-import Data.Base16.Types (assertBase16, extractBase16)
+import Crypto.Secp256k1.Internal.BaseOps
+  ( ecPubKeyCombine,
+    ecPubKeyCreate,
+    ecPubKeyParse,
+    ecPubKeySerialize,
+    ecPubKeyTweakAdd,
+    ecPubKeyTweakMul,
+    ecSecKeyTweakAdd,
+    ecSecKeyTweakMul,
+    ecTweakNegate,
+    ecdsaSign,
+    ecdsaSignatureNormalize,
+    ecdsaSignatureParseCompact,
+    ecdsaSignatureParseDer,
+    ecdsaSignatureSerializeCompact,
+    ecdsaSignatureSerializeDer,
+    ecdsaVerify,
+  )
+import Crypto.Secp256k1.Internal.Context (Ctx (..))
+import Crypto.Secp256k1.Internal.ForeignTypes
+  ( LCtx,
+    compressed,
+    isSuccess,
+    uncompressed,
+  )
+import Crypto.Secp256k1.Internal.Util
+  ( decodeHex,
+    packByteString,
+    showsHex,
+    unsafePackByteString,
+    unsafeUseByteString,
+  )
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
-import Data.ByteString.Base16 (decodeBase16, encodeBase16, isBase16)
 import Data.Hashable (Hashable (..))
 import Data.Maybe (fromJust, fromMaybe, isJust)
 import Data.String (IsString (..))
-import Data.String.Conversions (ConvertibleStrings, cs)
 import Foreign
   ( Bits (bitSize),
     Ptr,
@@ -109,8 +89,6 @@ import Text.Read
     readPrec,
   )
 
-newtype Ctx = Ctx {get :: Ptr LCtx}
-
 newtype PubKey = PubKey {get :: ByteString}
   deriving (Eq, Generic, Hashable, NFData)
 
@@ -129,12 +107,6 @@ newtype Tweak = Tweak {get :: ByteString}
 newtype CompactSig = CompactSig {get :: ByteString}
   deriving (Eq, Generic, Hashable, NFData)
 
-decodeHex :: (ConvertibleStrings a ByteString) => a -> Maybe ByteString
-decodeHex str =
-  if isBase16 $ cs str
-    then Just . decodeBase16 $ assertBase16 $ cs str
-    else Nothing
-
 instance Read PubKey where
   readPrec = parens $ do
     String str <- lexP
@@ -146,7 +118,7 @@ instance IsString PubKey where
       e = error "Could not decode public key from hex string"
 
 instance Show PubKey where
-  showsPrec _ = shows . extractBase16 . encodeBase16 . (.get)
+  showsPrec _ = showsHex . (.get)
 
 instance Read Msg where
   readPrec = parens $ do
@@ -158,8 +130,8 @@ instance IsString Msg where
     where
       e = error "Could not decode message from hex string"
 
-instance Show Sig where
-  showsPrec _ = shows . extractBase16 . encodeBase16 . (.get)
+instance Show Msg where
+  showsPrec _ = showsHex . (.get)
 
 instance Read Sig where
   readPrec = parens $ do
@@ -171,8 +143,8 @@ instance IsString Sig where
     where
       e = error "Could not decode signature from hex string"
 
-instance Show Msg where
-  showsPrec _ = shows . extractBase16 . encodeBase16 . (.get)
+instance Show Sig where
+  showsPrec _ = showsHex . (.get)
 
 instance Read SecKey where
   readPrec = parens $ do
@@ -185,7 +157,7 @@ instance IsString SecKey where
       e = error "Colud not decode secret key from hex string"
 
 instance Show SecKey where
-  showsPrec _ = shows . extractBase16 . encodeBase16 . (.get)
+  showsPrec _ = showsHex . (.get)
 
 instance Read Tweak where
   readPrec = parens $ do
@@ -198,36 +170,15 @@ instance IsString Tweak where
       e = error "Could not decode tweak from hex string"
 
 instance Show Tweak where
-  showsPrec _ = shows . extractBase16 . encodeBase16 . (.get)
+  showsPrec _ = showsHex . (.get)
 
-randomizeContext :: Ctx -> IO ()
-randomizeContext (Ctx ctx) = do
-  ret <- withRandomSeed $ contextRandomize ctx
-  unless (isSuccess ret) $ error "Could not randomize context"
-
-createContext :: IO Ctx
-createContext = Ctx <$> contextCreate signVerify
-
-cloneContext :: Ctx -> IO Ctx
-cloneContext = fmap Ctx . contextClone . (.get)
-
-destroyContext :: Ctx -> IO ()
-destroyContext = contextDestroy . (.get)
-
-withContext :: (Ctx -> IO a) -> IO a
-withContext = bracket create destroy
-  where
-    create = do
-      ctx <- createContext
-      randomizeContext ctx
-      return ctx
-    destroy = destroyContext
-
+-- | Import 64-byte 'ByteString' as 'Sig'.
 sig :: ByteString -> Maybe Sig
 sig bs
   | BS.length bs == 64 = Just (Sig bs)
   | otherwise = Nothing
 
+-- | Import 64-byte 'ByteString' as 'PubKey'.
 pubKey :: ByteString -> Maybe PubKey
 pubKey bs
   | BS.length bs == 64 = Just (PubKey bs)
