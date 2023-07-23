@@ -1,3 +1,5 @@
+{-# LANGUAGE ImportQualifiedPost #-}
+
 -- |
 -- Module      : Crypto.Secp256k1.Internal
 -- License     : UNLICENSE
@@ -7,7 +9,6 @@
 --
 -- The API for this module may change at any time. This is an internal module only
 -- exposed for hacking and experimentation.
-{-# LANGUAGE ImportQualifiedPost #-}
 module Crypto.Secp256k1.Internal where
 
 import Data.ByteString (ByteString)
@@ -54,9 +55,6 @@ type NonceFun a =
   Ptr a ->
   CInt ->
   IO CInt
-
-
-newtype Ctx = Ctx {getCtx :: Ptr LCtx}
 
 verify :: CtxFlags
 verify = 0x0101

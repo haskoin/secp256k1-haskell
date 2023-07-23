@@ -1,11 +1,11 @@
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE FlexibleContexts #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
-{-# LANGUAGE NoFieldSelectors #-}
-{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE OverloadedRecordDot #-}
+{-# LANGUAGE NoFieldSelectors #-}
 
 -- |
 -- Module      : Crypto.Secp256k1
@@ -81,7 +81,9 @@ import Data.Maybe (fromJust, fromMaybe, isJust)
 import Data.String (IsString (..))
 import Data.String.Conversions (ConvertibleStrings, cs)
 import Foreign
-  ( alloca,
+  ( Bits (bitSize),
+    Ptr,
+    alloca,
     allocaArray,
     allocaBytes,
     free,
@@ -90,7 +92,7 @@ import Foreign
     nullPtr,
     peek,
     poke,
-    pokeArray, Bits (bitSize),
+    pokeArray,
   )
 import GHC.Generics (Generic)
 import System.IO.Unsafe (unsafePerformIO)
@@ -106,6 +108,8 @@ import Text.Read
     pfail,
     readPrec,
   )
+
+newtype Ctx = Ctx {get :: Ptr LCtx}
 
 newtype PubKey = PubKey {get :: ByteString}
   deriving (Eq, Generic, Hashable, NFData)
@@ -205,10 +209,10 @@ createContext :: IO Ctx
 createContext = Ctx <$> contextCreate signVerify
 
 cloneContext :: Ctx -> IO Ctx
-cloneContext = fmap Ctx . contextClone . getCtx
+cloneContext = fmap Ctx . contextClone . (.get)
 
 destroyContext :: Ctx -> IO ()
-destroyContext = contextDestroy . getCtx
+destroyContext = contextDestroy . (.get)
 
 withContext :: (Ctx -> IO a) -> IO a
 withContext = bracket create destroy

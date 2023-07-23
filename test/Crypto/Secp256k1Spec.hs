@@ -1,6 +1,6 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 {-# LANGUAGE ImportQualifiedPost #-}
 {-# LANGUAGE OverloadedRecordDot #-}
-{-# LANGUAGE DuplicateRecordFields #-}
 
 module Crypto.Secp256k1Spec (spec) where
 
@@ -100,7 +100,7 @@ showReadTweak k = showRead t
 
 showReadPubKey :: Ctx -> SecKey -> Bool
 showReadPubKey ctx k =
-    (read . show) p == p
+  (read . show) p == p
   where
     p = derivePubKey ctx k
 

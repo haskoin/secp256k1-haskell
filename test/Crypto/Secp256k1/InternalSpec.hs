@@ -2,6 +2,7 @@
 
 module Crypto.Secp256k1.InternalSpec (spec) where
 
+import Control.Exception
 import Control.Monad
 import Control.Monad.Trans
 import Crypto.Secp256k1.Internal
@@ -18,7 +19,6 @@ import Foreign
 import System.Entropy
 import Test.HUnit (Assertion, assertBool, assertEqual)
 import Test.Hspec
-import Control.Exception
 
 spec :: Spec
 spec = do
@@ -125,8 +125,8 @@ ecdsaSignatureParseDerTest = do
           \fb2202206f0415ab0e9a977afd78b2c26ef39b3952096d319fd4b101c768ad6c132e30\
           \45"
 
-parseDer :: Ctx -> ByteString -> IO ByteString
-parseDer (Ctx x) bs =
+parseDer :: Ptr LCtx -> ByteString -> IO ByteString
+parseDer x bs =
   useAsCStringLen bs $ \(d, dl) ->
     allocaBytes 64 $ \s -> do
       ret <- ecdsaSignatureParseDer x s (castPtr d) (fromIntegral dl)
@@ -136,7 +136,7 @@ parseDer (Ctx x) bs =
 ecdsaSignatureSerializeDerTest :: Assertion
 ecdsaSignatureSerializeDerTest = do
   (ret, enc) <- liftIO . bracket (contextCreate verify) contextDestroy $ \x -> do
-    sig <- parseDer (Ctx x) der
+    sig <- parseDer x der
     (ret, enc) <- alloca $ \ol ->
       allocaBytes 72 $ \o ->
         useByteString sig $ \(s, _) -> do
@@ -159,7 +159,7 @@ ecdsaSignatureSerializeDerTest = do
 ecdsaVerifyTest :: Assertion
 ecdsaVerifyTest = withCtxPtr verify $ \ctx -> do
   ret <- liftIO $ do
-    sig <- parseDer (Ctx ctx) der
+    sig <- parseDer ctx der
     pk <- useByteString pub $ \(p, pl) ->
       allocaBytes 64 $ \k -> do
         ret <- ecPubKeyParse ctx k p (fromIntegral pl)
@@ -223,7 +223,7 @@ ecdsaSignTest = do
         packByteString (p, 64)
     withCtxPtr verify $ \ctx -> useByteString msg $ \(m, _) ->
       useByteString pub $ \(p, _) -> do
-        s' <- parseDer (Ctx ctx) der
+        s' <- parseDer ctx der
         useByteString s' $ \(s, _) -> ecdsaVerify ctx s m p
   assertBool "signature matches" (isSuccess ret)
   where
