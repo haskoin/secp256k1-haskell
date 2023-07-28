@@ -4,14 +4,13 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.0.0] - 2023-07-28
 
 ### Changed
 
-- No longer use implicit context data structure.
-- Use duplicated names for field selectors.
-- Move to record dot syntax.
-- Other code refactoring.
+- Context data structure must be created and passed explicitly.
+- Field selectors are now short and duplicates are allowed.
+- Use DuplicateRecordFields and OverloadedRecordDot language extensions.
 
 ## [0.6.1] - 2022-04-18
 
