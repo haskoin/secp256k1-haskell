@@ -2,6 +2,7 @@
 
 module Crypto.Secp256k1.InternalSpec (spec) where
 
+import Control.Exception
 import Control.Monad
 import Control.Monad.Trans
 import Crypto.Secp256k1.Internal
@@ -45,22 +46,21 @@ spec = do
     it "multiplies public key" ecPubKeyTweakMulTest
     it "combines public keys" ecPubKeyCombineTest
 
+withCtxPtr :: CtxFlags -> (Ptr LCtx -> IO a) -> IO a
+withCtxPtr f = bracket (contextCreate f) contextDestroy
+
 withEntropy :: (Ptr Seed32 -> IO a) -> IO a
 withEntropy f =
   getEntropy 32 >>= \e ->
     useByteString e $ \(s, _) -> f s
 
 createContextTest :: Assertion
-createContextTest = do
-  context_ptr <- liftIO $ contextCreate signVerify
-  assertBool "context not null" $ context_ptr /= nullPtr
+createContextTest = withCtxPtr signVerify $ \ctx -> do
+  assertBool "context not null" $ ctx /= nullPtr
 
 randomizeContextTest :: Assertion
-randomizeContextTest = do
-  ret <-
-    liftIO $
-      contextCreate sign >>= \x ->
-        withEntropy (contextRandomize x)
+randomizeContextTest = withCtxPtr sign $ \ctx -> do
+  ret <- withEntropy (contextRandomize ctx)
   assertBool "context randomized" $ isSuccess ret
 
 cloneContextTest :: Assertion
@@ -125,7 +125,7 @@ ecdsaSignatureParseDerTest = do
           \fb2202206f0415ab0e9a977afd78b2c26ef39b3952096d319fd4b101c768ad6c132e30\
           \45"
 
-parseDer :: Ctx -> ByteString -> IO ByteString
+parseDer :: Ptr LCtx -> ByteString -> IO ByteString
 parseDer x bs =
   useAsCStringLen bs $ \(d, dl) ->
     allocaBytes 64 $ \s -> do
@@ -135,10 +135,9 @@ parseDer x bs =
 
 ecdsaSignatureSerializeDerTest :: Assertion
 ecdsaSignatureSerializeDerTest = do
-  (ret, enc) <- liftIO $ do
-    x <- contextCreate verify
+  (ret, enc) <- liftIO . bracket (contextCreate verify) contextDestroy $ \x -> do
     sig <- parseDer x der
-    alloca $ \ol ->
+    (ret, enc) <- alloca $ \ol ->
       allocaBytes 72 $ \o ->
         useByteString sig $ \(s, _) -> do
           poke ol 72
@@ -146,6 +145,7 @@ ecdsaSignatureSerializeDerTest = do
           len <- fromIntegral <$> peek ol
           enc <- packCStringLen (castPtr o, len)
           return (ret, enc)
+    return (ret, enc)
   assertBool "serialization successful" $ isSuccess ret
   assertEqual "signatures match" der enc
   where
@@ -157,19 +157,18 @@ ecdsaSignatureSerializeDerTest = do
           \45"
 
 ecdsaVerifyTest :: Assertion
-ecdsaVerifyTest = do
+ecdsaVerifyTest = withCtxPtr verify $ \ctx -> do
   ret <- liftIO $ do
-    x <- contextCreate verify
-    sig <- parseDer x der
+    sig <- parseDer ctx der
     pk <- useByteString pub $ \(p, pl) ->
       allocaBytes 64 $ \k -> do
-        ret <- ecPubKeyParse x k p (fromIntegral pl)
+        ret <- ecPubKeyParse ctx k p (fromIntegral pl)
         unless (isSuccess ret) $ error "could not parse public key"
         packByteString (k, 64)
     useByteString msg $ \(m, _) ->
       useByteString pk $ \(k, _) ->
         useByteString sig $ \(s, _) ->
-          ecdsaVerify x s m k
+          ecdsaVerify ctx s m k
   assertBool "signature valid" $ isSuccess ret
   where
     der =
@@ -188,44 +187,44 @@ ecdsaVerifyTest = do
         assertBase16
           "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
 
-signCtx :: IO Ctx
+signCtx :: IO (Ptr LCtx)
 signCtx =
   contextCreate sign >>= \c ->
     withEntropy (contextRandomize c) >>= \r ->
       unless (isSuccess r) (error "failed to randomize context") >> return c
 
-createPubKey :: Ctx -> Ptr SecKey32 -> Ptr PubKey64 -> IO ()
-createPubKey x k p = do
-  ret <- ecPubKeyCreate x p k
+withSignCtxPtr :: (Ptr LCtx -> IO a) -> IO a
+withSignCtxPtr = bracket signCtx contextDestroy
+
+createPubKey :: Ptr LCtx -> Ptr SecKey32 -> Ptr PubKey64 -> IO ()
+createPubKey ctx k p = do
+  ret <- ecPubKeyCreate ctx p k
   unless (isSuccess ret) $ error "failed to create public key"
 
 ecdsaSignTest :: Assertion
 ecdsaSignTest = do
-  der <- liftIO $ do
-    x <- signCtx
+  der <- liftIO $ withSignCtxPtr $ \ctx -> do
     allocaBytes 64 $ \s ->
       useByteString msg $ \(m, _) ->
         useByteString key $ \(k, _) ->
           alloca $ \ol ->
             allocaBytes 72 $ \o -> do
               poke ol 72
-              ret1 <- ecdsaSign x s m k nullFunPtr nullPtr
+              ret1 <- ecdsaSign ctx s m k nullFunPtr nullPtr
               unless (isSuccess ret1) $ error "could not sign message"
-              ret2 <- ecdsaSignatureSerializeDer x o ol s
+              ret2 <- ecdsaSignatureSerializeDer ctx o ol s
               unless (isSuccess ret2) $ error "could not serialize signature"
               len <- peek ol
               packCStringLen (castPtr o, fromIntegral len)
   ret <- liftIO $ do
-    pub <- allocaBytes 64 $ \p ->
+    pub <- withSignCtxPtr $ \ctx -> allocaBytes 64 $ \p ->
       useByteString key $ \(s, _) -> do
-        x <- signCtx
-        createPubKey x s p
+        createPubKey ctx s p
         packByteString (p, 64)
-    useByteString msg $ \(m, _) ->
+    withCtxPtr verify $ \ctx -> useByteString msg $ \(m, _) ->
       useByteString pub $ \(p, _) -> do
-        x <- contextCreate verify
-        s' <- parseDer x der
-        useByteString s' $ \(s, _) -> ecdsaVerify x s m p
+        s' <- parseDer ctx der
+        useByteString s' $ \(s, _) -> ecdsaVerify ctx s m p
   assertBool "signature matches" (isSuccess ret)
   where
     msg =
@@ -238,10 +237,9 @@ ecdsaSignTest = do
           "f65255094d7773ed8dd417badc9fc045c1f80fdc5b2d25172b031ce6933e039a"
 
 ecSecKeyVerifyTest :: Assertion
-ecSecKeyVerifyTest = do
+ecSecKeyVerifyTest = withSignCtxPtr $ \ctx -> do
   ret <- liftIO $ useByteString key $ \(k, _) -> do
-    x <- signCtx
-    ecSecKeyVerify x k
+    ecSecKeyVerify ctx k
   assertBool "valid secret key" $ isSuccess ret
   where
     key =
@@ -250,16 +248,15 @@ ecSecKeyVerifyTest = do
           "f65255094d7773ed8dd417badc9fc045c1f80fdc5b2d25172b031ce6933e039a"
 
 ecPubkeyCreateTest :: Assertion
-ecPubkeyCreateTest = do
+ecPubkeyCreateTest = withSignCtxPtr $ \ctx -> do
   pk <- liftIO $
     useByteString key $ \(s, _) ->
       allocaBytes 64 $ \k -> do
-        x <- signCtx
-        createPubKey x s k
+        createPubKey ctx s k
         allocaBytes 65 $ \o ->
           alloca $ \ol -> do
             poke ol 65
-            rets <- ecPubKeySerialize x o ol k uncompressed
+            rets <- ecPubKeySerialize ctx o ol k uncompressed
             unless (isSuccess rets) $ error "failed to serialize public key"
             len <- fromIntegral <$> peek ol
             packCStringLen (castPtr o, len)
@@ -278,13 +275,12 @@ ecPubkeyCreateTest = do
 ecSecKeyTweakAddTest :: Assertion
 ecSecKeyTweakAddTest = do
   (ret, tweaked) <-
-    liftIO $
-      signCtx >>= \x ->
-        useByteString tweak $ \(w, _) ->
-          useByteString key $ \(k, _) -> do
-            ret <- ecSecKeyTweakAdd x k w
-            tweaked <- packByteString (k, 32)
-            return (ret, tweaked)
+    liftIO . withSignCtxPtr $ \ctx ->
+      useByteString tweak $ \(w, _) ->
+        useByteString key $ \(k, _) -> do
+          ret <- ecSecKeyTweakAdd ctx k w
+          tweaked <- packByteString (k, 32)
+          return (ret, tweaked)
   assertBool "successful secret key tweak" $ isSuccess ret
   assertEqual "tweaked keys match" expected tweaked
   where
@@ -303,12 +299,9 @@ ecSecKeyTweakAddTest = do
 
 ecSecKeyTweakMulTest :: Assertion
 ecSecKeyTweakMulTest = do
-  (ret, tweaked) <- liftIO $ do
-    x <- contextCreate sign
-    retr <- withEntropy $ contextRandomize x
-    unless (isSuccess retr) $ error "failed to randomize context"
+  (ret, tweaked) <- liftIO $ withSignCtxPtr $ \ctx -> do
     useByteString tweak $ \(w, _) -> useByteString key $ \(k, _) -> do
-      ret <- ecSecKeyTweakMul x k w
+      ret <- ecSecKeyTweakMul ctx k w
       tweaked <- packByteString (k, 32)
       return (ret, tweaked)
   assertBool "successful secret key tweak" $ isSuccess ret
@@ -327,7 +320,7 @@ ecSecKeyTweakMulTest = do
         assertBase16
           "a96f5962493acb179f60a86a9785fc7a30e0c39b64c09d24fe064d9aef15e4c0"
 
-serializeKey :: Ctx -> Ptr PubKey64 -> IO ByteString
+serializeKey :: Ptr LCtx -> Ptr PubKey64 -> IO ByteString
 serializeKey x p = allocaBytes 72 $ \d -> alloca $ \dl -> do
   poke dl 72
   ret <- ecPubKeySerialize x d dl p uncompressed
@@ -335,7 +328,7 @@ serializeKey x p = allocaBytes 72 $ \d -> alloca $ \dl -> do
   len <- peek dl
   packCStringLen (castPtr d, fromIntegral len)
 
-parseKey :: Ctx -> ByteString -> IO ByteString
+parseKey :: Ptr LCtx -> ByteString -> IO ByteString
 parseKey x bs =
   allocaBytes 64 $ \p ->
     useByteString bs $ \(d, dl) -> do

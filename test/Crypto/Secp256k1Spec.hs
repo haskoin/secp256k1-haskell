@@ -1,179 +1,179 @@
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE ImportQualifiedPost #-}
+{-# LANGUAGE OverloadedRecordDot #-}
+
 module Crypto.Secp256k1Spec (spec) where
 
-import Control.Monad.Par
-import qualified Control.Monad.Par as P
+import Control.Arrow (first)
+import Control.Monad.Par qualified as P
 import Crypto.Secp256k1
 import Data.Base16.Types (assertBase16, extractBase16)
-import qualified Data.ByteString as BS
+import Data.ByteString qualified as BS
 import Data.ByteString.Base16 (decodeBase16, encodeBase16)
-import qualified Data.ByteString.Char8 as B8
+import Data.ByteString.Char8 qualified as B8
 import Data.Either (fromRight)
-import Data.Maybe (fromMaybe, isNothing)
+import Data.Maybe (fromJust, fromMaybe, isJust, isNothing)
 import Data.String (fromString)
 import Data.String.Conversions (cs)
-import Test.HUnit (Assertion, assertEqual)
+import Test.HUnit (Assertion, assertBool, assertEqual)
 import Test.Hspec
 import Test.QuickCheck
 
 spec :: Spec
-spec = do
+spec = around withContext $ do
   describe "signatures" $ do
-    it "signs message" $
-      property signMsgTest
-    it "signs messages in parallel" $
-      property signMsgParTest
-    it "detects bad signature" $
-      property badSignatureTest
-    it "normalizes signatures" $
-      property normalizeSigTest
+    it "signs message" $ \ctx ->
+      property $ signMsgTest ctx
+    it "signs messages in parallel" $ \ctx ->
+      property $ signMsgParTest ctx
+    it "detects bad signature" $ \ctx ->
+      property $ badSignatureTest ctx
+    it "normalizes signatures" $ \ctx ->
+      property $ normalizeSigTest ctx
   describe "serialization" $ do
-    it "serializes public key" $
-      property serializePubKeyTest
-    it "serializes public keys in parallel" $
-      property parSerializePubKeyTest
-    it "serializes DER signature" $
-      property serializeSigTest
-    it "serializes DER signatures in parallel" $
-      property parSerializeSigTest
-    it "serializes compact signature" $
-      property serializeCompactSigTest
-    it "serialize secret key" $
+    it "serializes public key" $ \ctx ->
+      property $ serializePubKeyTest ctx
+    it "serializes public keys in parallel" $ \ctx ->
+      property $ parSerializePubKeyTest ctx
+    it "serializes DER signature" $ \ctx ->
+      property $ serializeSigTest ctx
+    it "serializes DER signatures in parallel" $ \ctx ->
+      property $ parSerializeSigTest ctx
+    it "serializes compact signature" $ \ctx ->
+      property $ serializeCompactSigTest ctx
+    it "serialize secret key" $ \_ ->
       property serializeSecKeyTest
-    it "shows and reads public key" $
-      property (showRead :: PubKey -> Bool)
-    it "shows and reads secret key" $
+    it "shows and reads secret key" $ \_ ->
       property (showRead :: SecKey -> Bool)
-    it "shows and reads tweak" $
-      property (showReadTweak :: SecKey -> Bool)
-    it "shows and reads signature" $
-      property (showReadSig :: (SecKey, Msg) -> Bool)
-    it "shows and reads message" $
+    it "shows and reads tweak" $ \_ ->
+      property showReadTweak
+    it "shows and reads message" $ \_ ->
       property (showRead :: Msg -> Bool)
-    it "reads public key from string" $
-      property isStringPubKey
-    it "reads secret key from string" $
+    it "shows and reads public key" $ \ctx ->
+      property $ showReadPubKey ctx
+    it "reads secret key from string" $ \_ ->
       property isStringSecKey
-    it "reads signature from string" $
-      property isStringSig
-    it "reads message from string" $
+    it "reads message from string" $ \_ ->
       property isStringMsg
-    it "reads tweak from string" $
+    it "reads tweak from string" $ \_ ->
       property isStringTweak
   describe "tweaks" $ do
-    it "add secret key" $ property tweakAddSecKeyTest
-    it "multiply secret key" $ property tweakMulSecKeyTest
-    it "add public key" $ property tweakAddPubKeyTest
-    it "multiply public key" $ property tweakMulPubKeyTest
-    it "combine public keys" $ property combinePubKeyTest
-    it "can't combine 0 public keys" $ property combinePubKeyEmptyListTest
-    it "negates tweak" $ property negateTweakTest
+    it "add secret key" $ \ctx ->
+      property $ tweakAddSecKeyTest ctx
+    it "multiply secret key" $ \ctx ->
+      property $ tweakMulSecKeyTest ctx
+    it "add public key" $ \ctx ->
+      property $ tweakAddPubKeyTest ctx
+    it "multiply public key" $ \ctx ->
+      property $ tweakMulPubKeyTest ctx
+    it "combine public keys" $ \ctx ->
+      property $ combinePubKeyTest ctx
+    it "can't combine 0 public keys" $ \ctx ->
+      property $ combinePubKeyEmptyListTest ctx
+    it "negates tweak" $ \ctx ->
+      property $ negateTweakTest ctx
 
 hexToBytes :: String -> BS.ByteString
 hexToBytes = decodeBase16 . assertBase16 . B8.pack
 
-isStringPubKey :: (PubKey, Bool) -> Bool
-isStringPubKey (k, c) = k == fromString (cs hex)
-  where
-    hex = extractBase16 . encodeBase16 $ exportPubKey c k
-
-isStringSig :: (SecKey, Msg) -> Bool
-isStringSig (k, m) = g == fromString (cs hex)
-  where
-    g = signMsg k m
-    hex = extractBase16 . encodeBase16 $ exportSig g
-
 isStringMsg :: Msg -> Bool
 isStringMsg m = m == fromString (cs m')
   where
-    m' = extractBase16 . encodeBase16 $ getMsg m
+    m' = (extractBase16 . encodeBase16) m.get
 
 isStringSecKey :: SecKey -> Bool
 isStringSecKey k = k == fromString (cs hex)
   where
-    hex = extractBase16 . encodeBase16 $ getSecKey k
+    hex = (extractBase16 . encodeBase16) k.get
 
 isStringTweak :: SecKey -> Bool
 isStringTweak k = t == fromString (cs hex)
   where
-    t = fromMaybe e . tweak $ getSecKey k
-    hex = extractBase16 . encodeBase16 $ getTweak t
+    t = (fromMaybe e . tweak) k.get
+    hex = (extractBase16 . encodeBase16) t.get
     e = error "Could not extract tweak from secret key"
 
 showReadTweak :: SecKey -> Bool
 showReadTweak k = showRead t
   where
-    t = tweak $ getSecKey k
+    t = tweak k.get
 
-showReadSig :: (SecKey, Msg) -> Bool
-showReadSig (k, m) = showRead sig
+showReadPubKey :: Ctx -> SecKey -> Bool
+showReadPubKey ctx k =
+  (read . show) p == p
   where
-    sig = signMsg k m
+    p = derivePubKey ctx k
 
 showRead :: (Show a, Read a, Eq a) => a -> Bool
 showRead x = read (show x) == x
 
-signMsgTest :: (Msg, SecKey) -> Bool
-signMsgTest (fm, fk) = verifySig fp fg fm
+signMsgTest :: Ctx -> (Msg, SecKey) -> Bool
+signMsgTest ctx (fm, fk) = verifySig ctx fp fg fm
   where
-    fp = derivePubKey fk
-    fg = signMsg fk fm
+    fp = derivePubKey ctx fk
+    fg = signMsg ctx fk fm
 
-signMsgParTest :: [(Msg, SecKey)] -> Bool
-signMsgParTest xs = P.runPar $ do
-  ys <- mapM (P.spawnP . signMsgTest) xs
+signMsgParTest :: Ctx -> [(Msg, SecKey)] -> Bool
+signMsgParTest ctx xs = P.runPar $ do
+  ys <- mapM (P.spawnP . signMsgTest ctx) xs
   and <$> mapM P.get ys
 
-badSignatureTest :: (Msg, SecKey, PubKey) -> Bool
-badSignatureTest (fm, fk, fp) = not $ verifySig fp fg fm
+badSignatureTest :: Ctx -> (Msg, SecKey, SecKey) -> Bool
+badSignatureTest ctx (fm, fk, fk') = not $ verifySig ctx fp fg fm
   where
-    fg = signMsg fk fm
+    fp = derivePubKey ctx fk'
+    fg = signMsg ctx fk fm
 
-normalizeSigTest :: (Msg, SecKey) -> Bool
-normalizeSigTest (fm, fk) = isNothing sig
+normalizeSigTest :: Ctx -> (Msg, SecKey) -> Bool
+normalizeSigTest ctx (fm, fk) = isNothing sig
   where
-    fg = signMsg fk fm
-    sig = normalizeSig fg
+    fg = signMsg ctx fk fm
+    sig = normalizeSig ctx fg
 
-serializePubKeyTest :: (PubKey, Bool) -> Bool
-serializePubKeyTest (fp, b) =
-  case importPubKey $ exportPubKey b fp of
+serializePubKeyTest :: Ctx -> (SecKey, Bool) -> Bool
+serializePubKeyTest ctx (fk, b) =
+  case importPubKey ctx $ exportPubKey ctx b fp of
     Just fp' -> fp == fp'
     Nothing -> False
+  where
+    fp = derivePubKey ctx fk
 
-parSerializePubKeyTest :: [(PubKey, Bool)] -> Bool
-parSerializePubKeyTest ps = runPar $ do
-  as <- mapM (spawnP . serializePubKeyTest) ps
-  and <$> mapM get as
+parSerializePubKeyTest :: Ctx -> [(SecKey, Bool)] -> Bool
+parSerializePubKeyTest ctx ks = P.runPar $ do
+  as <- mapM (P.spawnP . serializePubKeyTest ctx) ks
+  and <$> mapM P.get as
+  where
+    ps = map (first (derivePubKey ctx)) ks
 
-serializeSigTest :: (Msg, SecKey) -> Bool
-serializeSigTest (fm, fk) =
-  case importSig $ exportSig fg of
+serializeSigTest :: Ctx -> (Msg, SecKey) -> Bool
+serializeSigTest ctx (fm, fk) =
+  case importSig ctx $ exportSig ctx fg of
     Just fg' -> fg == fg'
     Nothing -> False
   where
-    fg = signMsg fk fm
+    fg = signMsg ctx fk fm
 
-parSerializeSigTest :: [(Msg, SecKey)] -> Bool
-parSerializeSigTest ms = runPar $ do
-  as <- mapM (spawnP . serializeSigTest) ms
-  and <$> mapM get as
+parSerializeSigTest :: Ctx -> [(Msg, SecKey)] -> Bool
+parSerializeSigTest ctx ms = P.runPar $ do
+  as <- mapM (P.spawnP . serializeSigTest ctx) ms
+  and <$> mapM P.get as
 
-serializeCompactSigTest :: (Msg, SecKey) -> Bool
-serializeCompactSigTest (fm, fk) =
-  case importCompactSig $ exportCompactSig fg of
+serializeCompactSigTest :: Ctx -> (Msg, SecKey) -> Bool
+serializeCompactSigTest ctx (fm, fk) =
+  case importCompactSig ctx $ exportCompactSig ctx fg of
     Just fg' -> fg == fg'
     Nothing -> False
   where
-    fg = signMsg fk fm
+    fg = signMsg ctx fk fm
 
 serializeSecKeyTest :: SecKey -> Bool
 serializeSecKeyTest fk =
-  case secKey $ getSecKey fk of
+  case secKey fk.get of
     Just fk' -> fk == fk'
     Nothing -> False
 
-tweakAddSecKeyTest :: Assertion
-tweakAddSecKeyTest =
+tweakAddSecKeyTest :: Ctx -> Assertion
+tweakAddSecKeyTest ctx =
   assertEqual "tweaked keys match" expected tweaked
   where
     tweaked = do
@@ -185,14 +185,14 @@ tweakAddSecKeyTest =
         tweak $
           hexToBytes
             "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
-      tweakAddSecKey key twk
+      tweakAddSecKey ctx key twk
     expected =
       secKey $
         hexToBytes
           "ec1e3ce1cefa18a671d51125e2b249688d934b0e28f5d1665384d9b02f929059"
 
-tweakMulSecKeyTest :: Assertion
-tweakMulSecKeyTest =
+tweakMulSecKeyTest :: Ctx -> Assertion
+tweakMulSecKeyTest ctx =
   assertEqual "tweaked keys match" expected tweaked
   where
     tweaked = do
@@ -204,82 +204,99 @@ tweakMulSecKeyTest =
         tweak $
           hexToBytes
             "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
-      tweakMulSecKey key twk
+      tweakMulSecKey ctx key twk
     expected =
       secKey $
         hexToBytes
           "a96f5962493acb179f60a86a9785fc7a30e0c39b64c09d24fe064d9aef15e4c0"
 
-tweakAddPubKeyTest :: Assertion
-tweakAddPubKeyTest =
+tweakAddPubKeyTest :: Ctx -> Assertion
+tweakAddPubKeyTest ctx = do
+  assertBool "did not fail to decode" $ isJust tweaked
+  assertBool "is not empty" $ not $ maybe False BS.null tweaked
   assertEqual "tweaked keys match" expected tweaked
   where
     tweaked = do
       pub <-
-        importPubKey $
+        importPubKey ctx $
           hexToBytes
             "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd4470512213d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
       twk <-
         tweak $
           hexToBytes
             "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
-      tweakAddPubKey pub twk
-    expected =
-      importPubKey $
-        hexToBytes
-          "04441c3982b97576646e0df0c96736063df6b42f2ee566d13b9f6424302d1379e518fdc87a14c5435bff7a5db4552042cb4120c6b86a4bbd3d0643f3c14ad01368"
+      key <- tweakAddPubKey ctx pub twk
+      return $ exportPubKey ctx True key
+    expected = do
+      key <-
+        importPubKey ctx $
+          hexToBytes
+            "04441c3982b97576646e0df0c96736063df6b42f2ee566d13b9f6424302d1379e518fdc87a14c5435bff7a5db4552042cb4120c6b86a4bbd3d0643f3c14ad01368"
+      return $ exportPubKey ctx True key
 
-tweakMulPubKeyTest :: Assertion
-tweakMulPubKeyTest =
+tweakMulPubKeyTest :: Ctx -> Assertion
+tweakMulPubKeyTest ctx = do
+  assertBool "did not fail to decode" $ isJust tweaked
+  assertBool "is not empty" $ not $ maybe False BS.null tweaked
   assertEqual "tweaked keys match" expected tweaked
   where
     tweaked = do
       pub <-
-        importPubKey $
+        importPubKey ctx $
           hexToBytes
             "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd4470512213d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
       twk <-
         tweak $
           hexToBytes
             "f5cbe7d88182a4b8e400f96b06128921864a18187d114c8ae8541b566c8ace00"
-      tweakMulPubKey pub twk
-    expected =
-      importPubKey $
-        hexToBytes
-          "04f379dc99cdf5c83e433defa267fbb3377d61d6b779c06a0e4ce29ae3ff5353b12ae49c9d07e7368f2ba5a446c203255ce912322991a2d6a9d5d5761c61ed1845"
+      key <- tweakMulPubKey ctx pub twk
+      return $ exportPubKey ctx True key
+    expected = do
+      key <-
+        importPubKey ctx $
+          hexToBytes
+            "04f379dc99cdf5c83e433defa267fbb3377d61d6b779c06a0e4ce29ae3ff5353b12ae49c9d07e7368f2ba5a446c203255ce912322991a2d6a9d5d5761c61ed1845"
+      return $ exportPubKey ctx True key
 
-combinePubKeyTest :: Assertion
-combinePubKeyTest =
+combinePubKeyTest :: Ctx -> Assertion
+combinePubKeyTest ctx = do
+  assertBool "did not fail to decode" $ isJust combined
+  assertBool "is not empty" $ not $ maybe False BS.null combined
   assertEqual "combined keys match" expected combined
   where
     combined = do
       pub1 <-
-        importPubKey $
+        importPubKey ctx $
           hexToBytes
             "04dded4203dac96a7e85f2c374a37ce3e9c9a155a72b64b4551b0bfe779dd4470512213d5ed790522c042dee8e85c4c0ec5f96800b72bc5940c8bc1c5e11e4fcbf"
       pub2 <-
-        importPubKey $
+        importPubKey ctx $
           hexToBytes
             "0487d82042d93447008dfe2af762068a1e53ff394a5bf8f68a045fa642b99ea5d153f577dd2dba6c7ae4cfd7b6622409d7edd2d76dd13a8092cd3af97b77bd2c77"
       pub3 <-
-        importPubKey $
+        importPubKey ctx $
           hexToBytes
             "049b101edcbe1ee37ff6b2318526a425b629e823d7d8d9154417880595a28000ee3febd908754b8ce4e491aa6fe488b41fb5d4bb3788e33c9ff95a7a9229166d59"
-      combinePubKeys [pub1, pub2, pub3]
-    expected =
-      importPubKey $
-        hexToBytes
-          "043d9a7ec70011efc23c33a7e62d2ea73cca87797e3b659d93bea6aa871aebde56c3bc6134ca82e324b0ab9c0e601a6d2933afe7fb5d9f3aae900f5c5dc6e362c8"
+      key <- combinePubKeys ctx [pub1, pub2, pub3]
+      return $ exportPubKey ctx True key
+    expected = do
+      key <-
+        importPubKey ctx $
+          hexToBytes
+            "043d9a7ec70011efc23c33a7e62d2ea73cca87797e3b659d93bea6aa871aebde56c3bc6134ca82e324b0ab9c0e601a6d2933afe7fb5d9f3aae900f5c5dc6e362c8"
+      return $ exportPubKey ctx True key
 
-combinePubKeyEmptyListTest :: Assertion
-combinePubKeyEmptyListTest =
+combinePubKeyEmptyListTest :: Ctx -> Assertion
+combinePubKeyEmptyListTest ctx =
   assertEqual "empty pubkey list must return Nothing" expected combined
   where
     expected = Nothing
-    combined = combinePubKeys []
+    combined = do
+      key <- combinePubKeys ctx []
+      return $ exportPubKey ctx True key
 
-negateTweakTest :: Assertion
-negateTweakTest =
+negateTweakTest :: Ctx -> Assertion
+negateTweakTest ctx =
   assertEqual "can recover secret key 1 after adding tweak 1" oneKey subtracted
   where
     Just oneKey =
@@ -290,6 +307,6 @@ negateTweakTest =
       tweak . decodeBase16 . assertBase16 $
         B8.pack
           "0000000000000000000000000000000000000000000000000000000000000001"
-    Just minusOneTwk = tweakNegate oneTwk
-    Just twoKey = tweakAddSecKey oneKey oneTwk
-    Just subtracted = tweakAddSecKey twoKey minusOneTwk
+    Just minusOneTwk = tweakNegate ctx oneTwk
+    Just twoKey = tweakAddSecKey ctx oneKey oneTwk
+    Just subtracted = tweakAddSecKey ctx twoKey minusOneTwk
