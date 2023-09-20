@@ -12,7 +12,6 @@ github: haskoin/secp256k1-haskell
 homepage: http://github.com/haskoin/secp256k1-haskell#readme
 extra-source-files:
   - CHANGELOG.md
-  - README.md
 dependencies:
   - base >=4.9 && <5
   - base16 >=1.0
