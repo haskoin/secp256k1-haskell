@@ -1,4 +1,3 @@
-{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE NoFieldSelectors #-}
 
 -- |
@@ -12,38 +11,54 @@
 -- exposed for hacking and experimentation.
 module Crypto.Secp256k1.Internal.Context where
 
-import Control.Exception (bracket)
+import Control.Exception (bracket, mask_)
 import Control.Monad (unless)
-import Crypto.Secp256k1.Internal.ForeignTypes (CtxFlags, LCtx, Ret, Seed32, isSuccess)
+import Crypto.Secp256k1.Internal.ForeignTypes
+  ( CtxFlags,
+    LCtx,
+    Ret,
+    Seed32,
+    isSuccess,
+  )
 import Crypto.Secp256k1.Internal.Util (withRandomSeed)
 import Foreign (FunPtr, Ptr)
 import Foreign.C (CInt (..), CString, CUInt (..))
+import Foreign.ForeignPtr
+  ( FinalizerPtr,
+    ForeignPtr,
+    finalizeForeignPtr,
+    newForeignPtr,
+    withForeignPtr,
+  )
+import GHC.Conc (writeTVar)
 import System.IO.Unsafe (unsafePerformIO)
 
-newtype Ctx = Ctx {get :: Ptr LCtx}
+type Ctx = ForeignPtr LCtx
 
 randomizeContext :: Ctx -> IO ()
-randomizeContext (Ctx ctx) = do
+randomizeContext fctx = withForeignPtr fctx $ \ctx -> do
   ret <- withRandomSeed $ contextRandomize ctx
   unless (isSuccess ret) $ error "Could not randomize context"
 
 createContext :: IO Ctx
-createContext = Ctx <$> contextCreate signVerify
+createContext = do
+  fctx <- mask_ $ do
+    ctx <- contextCreate signVerify
+    newForeignPtr contextDestroyFunPtr ctx
+  randomizeContext fctx
+  return fctx
 
 cloneContext :: Ctx -> IO Ctx
-cloneContext = fmap Ctx . contextClone . (.get)
+cloneContext fctx =
+  withForeignPtr fctx $ \ctx -> mask_ $ do
+    ctx' <- contextClone ctx
+    newForeignPtr contextDestroyFunPtr ctx'
 
 destroyContext :: Ctx -> IO ()
-destroyContext = contextDestroy . (.get)
+destroyContext = finalizeForeignPtr
 
 withContext :: (Ctx -> IO a) -> IO a
-withContext = bracket create destroy
-  where
-    create = do
-      ctx <- createContext
-      randomizeContext ctx
-      return ctx
-    destroy = destroyContext
+withContext = (createContext >>=)
 
 verify :: CtxFlags
 verify = 0x0101
@@ -65,9 +80,10 @@ foreign import ccall safe "secp256k1.h secp256k1_context_clone"
     IO (Ptr LCtx)
 
 foreign import ccall safe "secp256k1.h secp256k1_context_destroy"
-  contextDestroy ::
-    Ptr LCtx ->
-    IO ()
+  contextDestroy :: Ptr LCtx -> IO ()
+
+foreign import ccall safe "secp256k1.h &secp256k1_context_destroy"
+  contextDestroyFunPtr :: FunPtr (Ptr LCtx -> IO ())
 
 foreign import ccall safe "secp256k1.h secp256k1_context_set_illegal_callback"
   setIllegalCallback ::

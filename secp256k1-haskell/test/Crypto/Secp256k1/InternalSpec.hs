@@ -19,7 +19,7 @@ import Data.ByteString
 import Data.ByteString.Base16 (decodeBase16)
 import Foreign
 import System.Entropy
-import Test.HUnit (Assertion, assertBool, assertEqual)
+import Test.HUnit (Assertion, assertBool, assertEqual, assertFailure)
 import Test.Hspec
 
 spec :: Spec
