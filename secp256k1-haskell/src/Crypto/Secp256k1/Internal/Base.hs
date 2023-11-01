@@ -205,7 +205,7 @@ compactSig bs
 -- | Convert signature to a normalized lower-S form. 'Nothing' indicates that it
 -- was already normal.
 normalizeSig :: Ctx -> Sig -> Maybe Sig
-normalizeSig fctx (Sig sig) =
+normalizeSig (Ctx fctx) (Sig sig) =
   unsafePerformIO $ withForeignPtr fctx $ \ctx ->
     unsafeUseByteString sig $ \(sig_in, _) -> do
       sig_out <- mallocBytes 64
@@ -226,7 +226,7 @@ tweak bs
 
 -- | Import DER-encoded public key.
 importPubKey :: Ctx -> ByteString -> Maybe PubKey
-importPubKey fctx bs
+importPubKey (Ctx fctx) bs
   | BS.null bs = Nothing
   | otherwise =
       unsafePerformIO $ withForeignPtr fctx $ \ctx ->
@@ -243,7 +243,7 @@ importPubKey fctx bs
 
 -- | Encode public key as DER. First argument 'True' for compressed output.
 exportPubKey :: Ctx -> Bool -> PubKey -> ByteString
-exportPubKey fctx compress (PubKey in_bs) =
+exportPubKey (Ctx fctx) compress (PubKey in_bs) =
   unsafePerformIO $ withForeignPtr fctx $ \ctx ->
     unsafeUseByteString in_bs $ \(in_ptr, _) ->
       alloca $ \len_ptr ->
@@ -258,7 +258,7 @@ exportPubKey fctx compress (PubKey in_bs) =
     flags = if compress then compressed else uncompressed
 
 exportCompactSig :: Ctx -> Sig -> CompactSig
-exportCompactSig fctx (Sig sig_bs) =
+exportCompactSig (Ctx fctx) (Sig sig_bs) =
   unsafePerformIO $ withForeignPtr fctx $ \ctx ->
     unsafeUseByteString sig_bs $ \(sig_ptr, _) -> do
       out_ptr <- mallocBytes 64
@@ -270,7 +270,7 @@ exportCompactSig fctx (Sig sig_bs) =
       return $ CompactSig out_bs
 
 importCompactSig :: Ctx -> CompactSig -> Maybe Sig
-importCompactSig fctx (CompactSig compact_sig) =
+importCompactSig (Ctx fctx) (CompactSig compact_sig) =
   unsafePerformIO $ withForeignPtr fctx $ \ctx ->
     unsafeUseByteString compact_sig $ \(compact_ptr, _) -> do
       out_sig <- mallocBytes 64
@@ -285,7 +285,7 @@ importCompactSig fctx (CompactSig compact_sig) =
 
 -- | Import DER-encoded signature.
 importSig :: Ctx -> ByteString -> Maybe Sig
-importSig fctx bs
+importSig (Ctx fctx) bs
   | BS.null bs = Nothing
   | otherwise =
       unsafePerformIO $ withForeignPtr fctx $ \ctx ->
@@ -302,7 +302,7 @@ importSig fctx bs
 
 -- | Encode signature as strict DER.
 exportSig :: Ctx -> Sig -> ByteString
-exportSig fctx (Sig in_sig) =
+exportSig (Ctx fctx) (Sig in_sig) =
   unsafePerformIO $ withForeignPtr fctx $ \ctx ->
     unsafeUseByteString in_sig $ \(in_ptr, _) ->
       alloca $ \out_len ->
@@ -315,7 +315,7 @@ exportSig fctx (Sig in_sig) =
 
 -- | Verify message signature. 'True' means that the signature is correct.
 verifySig :: Ctx -> PubKey -> Sig -> Msg -> Bool
-verifySig fctx (PubKey pub_key) (Sig sig) (Msg m) =
+verifySig (Ctx fctx) (PubKey pub_key) (Sig sig) (Msg m) =
   unsafePerformIO $ withForeignPtr fctx $ \ctx ->
     unsafeUseByteString pub_key $ \(pub_key_ptr, _) ->
       unsafeUseByteString sig $ \(sig_ptr, _) ->
@@ -323,7 +323,7 @@ verifySig fctx (PubKey pub_key) (Sig sig) (Msg m) =
           isSuccess <$> ecdsaVerify ctx sig_ptr msg_ptr pub_key_ptr
 
 signMsg :: Ctx -> SecKey -> Msg -> Sig
-signMsg fctx (SecKey sec_key) (Msg m) =
+signMsg (Ctx fctx) (SecKey sec_key) (Msg m) =
   unsafePerformIO $ withForeignPtr fctx $ \ctx ->
     unsafeUseByteString sec_key $ \(sec_key_ptr, _) ->
       unsafeUseByteString m $ \(msg_ptr, _) -> do
@@ -335,7 +335,7 @@ signMsg fctx (SecKey sec_key) (Msg m) =
         Sig <$> unsafePackByteString (sig_ptr, 64)
 
 derivePubKey :: Ctx -> SecKey -> PubKey
-derivePubKey fctx (SecKey sec_key) =
+derivePubKey (Ctx fctx) (SecKey sec_key) =
   unsafePerformIO $ withForeignPtr fctx $ \ctx ->
     unsafeUseByteString sec_key $ \(sec_key_ptr, _) -> do
       pub_key_ptr <- mallocBytes 64
@@ -347,7 +347,7 @@ derivePubKey fctx (SecKey sec_key) =
 
 -- | Add tweak to secret key.
 tweakAddSecKey :: Ctx -> SecKey -> Tweak -> Maybe SecKey
-tweakAddSecKey fctx (SecKey sec_key) (Tweak t) =
+tweakAddSecKey (Ctx fctx) (SecKey sec_key) (Tweak t) =
   unsafePerformIO $ withForeignPtr fctx $ \ctx ->
     unsafeUseByteString new_bs $ \(sec_key_ptr, _) ->
       unsafeUseByteString t $ \(tweak_ptr, _) -> do
@@ -360,7 +360,7 @@ tweakAddSecKey fctx (SecKey sec_key) (Tweak t) =
 
 -- | Multiply secret key by tweak.
 tweakMulSecKey :: Ctx -> SecKey -> Tweak -> Maybe SecKey
-tweakMulSecKey fctx (SecKey sec_key) (Tweak t) =
+tweakMulSecKey (Ctx fctx) (SecKey sec_key) (Tweak t) =
   unsafePerformIO $ withForeignPtr fctx $ \ctx ->
     unsafeUseByteString new_bs $ \(sec_key_ptr, _) ->
       unsafeUseByteString t $ \(tweak_ptr, _) -> do
@@ -373,7 +373,7 @@ tweakMulSecKey fctx (SecKey sec_key) (Tweak t) =
 
 -- | Add tweak to public key. Tweak is multiplied first by G to obtain a point.
 tweakAddPubKey :: Ctx -> PubKey -> Tweak -> Maybe PubKey
-tweakAddPubKey fctx (PubKey pub_key) (Tweak t) =
+tweakAddPubKey (Ctx fctx) (PubKey pub_key) (Tweak t) =
   unsafePerformIO $ withForeignPtr fctx $ \ctx ->
     unsafeUseByteString new_bs $ \(pub_key_ptr, _) ->
       unsafeUseByteString t $ \(tweak_ptr, _) -> do
@@ -387,7 +387,7 @@ tweakAddPubKey fctx (PubKey pub_key) (Tweak t) =
 -- | Multiply public key by tweak. Tweak is multiplied first by G to obtain a
 -- point.
 tweakMulPubKey :: Ctx -> PubKey -> Tweak -> Maybe PubKey
-tweakMulPubKey fctx (PubKey pub_key) (Tweak t) =
+tweakMulPubKey (Ctx fctx) (PubKey pub_key) (Tweak t) =
   unsafePerformIO $ withForeignPtr fctx $ \ctx ->
     unsafeUseByteString new_bs $ \(pub_key_ptr, _) ->
       unsafeUseByteString t $ \(tweak_ptr, _) -> do
@@ -401,7 +401,7 @@ tweakMulPubKey fctx (PubKey pub_key) (Tweak t) =
 -- | Add multiple public keys together.
 combinePubKeys :: Ctx -> [PubKey] -> Maybe PubKey
 combinePubKeys _ [] = Nothing
-combinePubKeys fctx pubs =
+combinePubKeys (Ctx fctx) pubs =
   unsafePerformIO $ withForeignPtr fctx $ \ctx ->
     pointers [] pubs $ \ps ->
       allocaArray (length ps) $ \a -> do
@@ -422,7 +422,7 @@ combinePubKeys fctx pubs =
         pointers (p : ps) pub_keys f
 
 tweakNegate :: Ctx -> Tweak -> Maybe Tweak
-tweakNegate fctx (Tweak t) =
+tweakNegate (Ctx fctx) (Tweak t) =
   unsafePerformIO $ withForeignPtr fctx $ \ctx ->
     unsafeUseByteString new $ \(out, _) -> do
       ret <- ecTweakNegate ctx out

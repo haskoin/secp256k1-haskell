@@ -33,29 +33,29 @@ import Foreign.ForeignPtr
 import GHC.Conc (writeTVar)
 import System.IO.Unsafe (unsafePerformIO)
 
-type Ctx = ForeignPtr LCtx
+newtype Ctx = Ctx {get :: ForeignPtr LCtx}
 
 randomizeContext :: Ctx -> IO ()
-randomizeContext fctx = withForeignPtr fctx $ \ctx -> do
+randomizeContext (Ctx fctx) = withForeignPtr fctx $ \ctx -> do
   ret <- withRandomSeed $ contextRandomize ctx
   unless (isSuccess ret) $ error "Could not randomize context"
 
 createContext :: IO Ctx
 createContext = do
-  fctx <- mask_ $ do
-    ctx <- contextCreate signVerify
-    newForeignPtr contextDestroyFunPtr ctx
-  randomizeContext fctx
-  return fctx
+  ctx <- mask_ $ do
+    pctx <- contextCreate signVerify
+    Ctx <$> newForeignPtr contextDestroyFunPtr pctx
+  randomizeContext ctx
+  return ctx
 
 cloneContext :: Ctx -> IO Ctx
-cloneContext fctx =
+cloneContext (Ctx fctx) =
   withForeignPtr fctx $ \ctx -> mask_ $ do
     ctx' <- contextClone ctx
-    newForeignPtr contextDestroyFunPtr ctx'
+    Ctx <$> newForeignPtr contextDestroyFunPtr ctx'
 
 destroyContext :: Ctx -> IO ()
-destroyContext = finalizeForeignPtr
+destroyContext (Ctx fctx)= finalizeForeignPtr fctx
 
 withContext :: (Ctx -> IO a) -> IO a
 withContext = (createContext >>=)
