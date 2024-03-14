@@ -1,3 +1,4 @@
+{-# LANGUAGE DuplicateRecordFields #-}
 -- |
 -- Module      : Crypto.Secp256k1
 -- License     : UNLICENSE
