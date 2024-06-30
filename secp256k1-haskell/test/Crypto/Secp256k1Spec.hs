@@ -72,6 +72,11 @@ spec = around withContext $ do
       property $ combinePubKeyEmptyListTest ctx
     it "negates tweak" $ \ctx ->
       property $ negateTweakTest ctx
+  describe "BIP 340" $ do
+    it "verifies a signed message (null rand32)" $ \ctx ->
+      property $ bip340SigTestNull ctx
+    it "verifies a signed message (not-null rand32)" $ \ctx ->
+      property $ bip340SigTest ctx
 
 hexToBytes :: String -> BS.ByteString
 hexToBytes = decodeBase16 . assertBase16 . B8.pack
@@ -310,3 +315,24 @@ negateTweakTest ctx =
     Just minusOneTwk = tweakNegate ctx oneTwk
     Just twoKey = tweakAddSecKey ctx oneKey oneTwk
     Just subtracted = tweakAddSecKey ctx twoKey minusOneTwk
+
+bip340SigTestNull :: Ctx -> Assertion
+bip340SigTestNull ctx =
+  assertBool "verifies signature" $
+    verifyBip340 ctx pk theMsg sig
+  where
+    Just sk = secKey $ BS.replicate 32 0x01
+    pk = deriveXOnlyPubKey ctx $ derivePubKey ctx sk
+    Just theMsg = msg $ BS.replicate 32 0x02
+    Just sig = signBip340 ctx sk theMsg Nothing
+
+bip340SigTest :: Ctx -> Assertion
+bip340SigTest ctx =
+  assertBool "verifies signature" $
+    verifyBip340 ctx pk theMsg sig
+  where
+    Just sk = secKey $ BS.replicate 32 0x01
+    pk = deriveXOnlyPubKey ctx $ derivePubKey ctx sk
+    Just theMsg = msg $ BS.replicate 32 0x02
+    Just r = mkRand32 $ BS.replicate 32 0x03
+    Just sig = signBip340 ctx sk theMsg (Just r)

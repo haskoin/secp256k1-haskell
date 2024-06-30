@@ -11,6 +11,7 @@ module Crypto.Secp256k1.Internal.BaseOps where
 
 import Crypto.Secp256k1.Internal.ForeignTypes
   ( Compact64,
+    KeyPair,
     LCtx,
     Msg32,
     NonceFun,
@@ -21,6 +22,7 @@ import Crypto.Secp256k1.Internal.ForeignTypes
     SerFlags,
     Sig64,
     Tweak32,
+    XOPubKey32,
   )
 import Foreign (FunPtr, Ptr)
 import Foreign.C
@@ -170,3 +172,67 @@ foreign import ccall safe "secp256k1.h secp256k1_ec_pubkey_combine"
     -- | number of public keys
     CInt ->
     IO Ret
+
+foreign import ccall unsafe "secp256k1.h secp256k1_schnorrsig_sign"
+  schnorrSign ::
+    Ptr LCtx ->
+    -- | Signature
+    Ptr Sig64 ->
+    -- | Message
+    Ptr Msg32 ->
+    -- | Keypair
+    Ptr KeyPair ->
+    -- | Randomness
+    Ptr CUChar ->
+    IO CInt
+
+foreign import ccall unsafe "secp256k1.h secp256k1_schnorrsig_verify"
+  schnorrVerify ::
+    Ptr LCtx ->
+    -- | Signature
+    Ptr Sig64 ->
+    -- | Message
+    Ptr Msg32 ->
+    -- | Message length
+    CSize ->
+    -- | X-Only pubkey
+    Ptr XOPubKey32 ->
+    IO CInt
+
+foreign import ccall unsafe "secp256k1.h secp256k1_keypair_create"
+  keyPairCreate ::
+    Ptr LCtx ->
+    -- | Keypair
+    Ptr KeyPair ->
+    -- | Secret key
+    Ptr SecKey32 ->
+    IO CInt
+
+foreign import ccall unsafe "secp256k1.h secp256k1_xonly_pubkey_parse"
+  xOnlyPubKeyParse ::
+    Ptr LCtx ->
+    -- | Parsed X-Only pubkey
+    Ptr XOPubKey32 ->
+    -- | Input buffer
+    Ptr CUChar ->
+    IO CInt
+
+foreign import ccall unsafe "secp256k1.h secp256k1_xonly_pubkey_serialize"
+  xOnlyPubKeySerialize ::
+    Ptr LCtx ->
+    -- | Output buffer
+    Ptr CUChar ->
+    -- | X-Only pubkey
+    Ptr XOPubKey32 ->
+    IO CInt
+
+foreign import ccall unsafe "secp256k1.h secp256k1_xonly_pubkey_from_pubkey"
+  xOnlyPubKeyFromPubKey ::
+    Ptr LCtx ->
+    -- | X-only pubkey
+    Ptr XOPubKey32 ->
+    -- | Parity
+    Ptr CInt ->
+    -- | Pubkey
+    Ptr PubKey64 ->
+    IO CInt
