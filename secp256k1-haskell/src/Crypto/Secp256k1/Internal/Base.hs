@@ -40,6 +40,12 @@ import Crypto.Secp256k1.Internal.BaseOps
     ecdsaSignatureSerializeCompact,
     ecdsaSignatureSerializeDer,
     ecdsaVerify,
+    keyPairCreate,
+    schnorrSign,
+    schnorrVerify,
+    xOnlyPubKeyFromPubKey,
+    xOnlyPubKeyParse,
+    xOnlyPubKeySerialize,
   )
 import Crypto.Secp256k1.Internal.Context (Ctx (..))
 import Crypto.Secp256k1.Internal.ForeignTypes
@@ -57,6 +63,7 @@ import Crypto.Secp256k1.Internal.Util
   )
 import Data.ByteString (ByteString)
 import Data.ByteString qualified as BS
+import Data.ByteString.Unsafe qualified as BU
 import Data.Hashable (Hashable (..))
 import Data.Maybe (fromJust, fromMaybe, isJust)
 import Data.String (IsString (..))
@@ -445,3 +452,122 @@ instance Arbitrary SecKey where
       valid_bs = bs_gen `suchThat` isJust
       bs_gen = secKey . BS.pack <$> replicateM 32 arbitraryBoundedRandom
       gen_key = fromJust <$> valid_bs
+
+-- | An x-only pubkey corresponds to the keys @(x,y)@ and @(x, -y)@.  The
+-- equality test only checks the x-coordinate.  An x-only pubkey serializes to 32
+-- bytes.
+--
+-- @since 1.3.0
+newtype XOnlyPubKey = XOnlyPubKey {get :: ByteString}
+  deriving (Eq, Hashable)
+
+instance Show XOnlyPubKey where
+  showsPrec _ = showsHex . (.get)
+
+newtype Bip340Sig = Bip340Sig {get :: ByteString}
+  deriving (Eq)
+
+instance Show Bip340Sig where
+  showsPrec _ = showsHex . (.get)
+
+newtype Rand32 = Rand32 {get :: ByteString}
+
+-- | Create a 'Rand32' value from a 32-byte 'ByteString'
+mkRand32 :: ByteString -> Maybe Rand32
+mkRand32 bytes
+  | BS.length bytes == 32 = Just $ Rand32 bytes
+  | otherwise = Nothing
+
+-- | Encode an x-only pubkey to bytes
+--
+-- @since 1.3.0
+exportXOnlyPubKey :: Ctx -> XOnlyPubKey -> ByteString
+exportXOnlyPubKey (Ctx fctx) pubKey = unsafePerformIO $
+  withForeignPtr fctx $ \ctx ->
+    unsafeUseByteString pubKey.get $ \(pub_key, _) ->
+      allocaBytes 32 $ \out_ptr -> do
+        result <- xOnlyPubKeySerialize ctx out_ptr pub_key
+        if isSuccess result
+          then packByteString (out_ptr, 32)
+          else free out_ptr >> error "Unable to serialize x-only pubkey"
+
+-- |  Import an x-only pubkey from bytes
+--
+-- @since 1.3.0
+importXOnlyPubKey :: Ctx -> ByteString -> Maybe XOnlyPubKey
+importXOnlyPubKey (Ctx fctx) inputBytes
+  | BS.length inputBytes == 32 = unsafePerformIO $
+      withForeignPtr fctx $ \ctx ->
+        unsafeUseByteString inputBytes $ \(input, _) -> do
+          pub_key <- mallocBytes 64
+          result <- xOnlyPubKeyParse ctx pub_key input
+          if isSuccess result
+            then Just . XOnlyPubKey <$> unsafePackByteString (pub_key, 64)
+            else pure Nothing
+  | otherwise = Nothing
+
+-- | Derive an x-only key from a pub key
+--
+-- @since 1.3.0
+deriveXOnlyPubKey :: Ctx -> PubKey -> XOnlyPubKey
+deriveXOnlyPubKey (Ctx fctx) pubKey = unsafePerformIO $
+  withForeignPtr fctx $ \ctx ->
+    unsafeUseByteString pubKey.get $ \(pub_key, _) -> do
+      xonly_pub_key <- mallocBytes 64
+      result <- xOnlyPubKeyFromPubKey ctx xonly_pub_key nullPtr pub_key
+      if isSuccess result
+        then XOnlyPubKey <$> unsafePackByteString (xonly_pub_key, 64)
+        else free xonly_pub_key >> error "Unable to derive x-only pubkey"
+
+-- | Sign a message according to BIP 340
+--
+-- @since 1.3.0
+signBip340 ::
+  Ctx ->
+  -- | Secret key
+  SecKey ->
+  -- | Message
+  Msg ->
+  -- | Randomness
+  Maybe Rand32 ->
+  -- | Signature
+  Maybe Bip340Sig
+signBip340 (Ctx fctx) theSecKey message rand32 = unsafePerformIO $
+  withForeignPtr fctx $ \ctx ->
+    unsafeUseByteString theSecKey.get $ \(sec_key, _) ->
+      allocaBytes 96 $ \key_pair -> do
+        -- The 'SecKey' API guarantees that the following call will succeed
+        _ <- keyPairCreate ctx key_pair sec_key
+        unsafeUseByteString message.get $ \(msg_ptr, _) -> do
+          withRand32 $ \(rand_ptr, _) -> do
+            sig_ptr <- mallocBytes 64
+            result <- schnorrSign ctx sig_ptr msg_ptr key_pair rand_ptr
+            if isSuccess result
+              then Just . Bip340Sig <$> unsafePackByteString (sig_ptr, 64)
+              else Nothing <$ free sig_ptr
+  where
+    withRand32 = maybe ($ (nullPtr, 0)) (unsafeUseByteString . (.get)) rand32
+
+-- | Verify a message according to BIP 340
+--
+-- @since 1.3.0
+verifyBip340 ::
+  Ctx ->
+  XOnlyPubKey ->
+  -- | Message
+  Msg ->
+  -- | Signature
+  Bip340Sig ->
+  Bool
+verifyBip340 (Ctx fctx) xOnlyPubKey message sig = unsafePerformIO $
+  withForeignPtr fctx $ \ctx ->
+    unsafeUseByteString xOnlyPubKey.get $ \(pub_key, _) ->
+      unsafeUseByteString message.get $ \(msg_ptr, messageSize) ->
+        unsafeUseByteString sig.get $ \(sig_ptr, _) ->
+          isSuccess
+            <$> schnorrVerify
+              ctx
+              sig_ptr
+              msg_ptr
+              (fromIntegral messageSize)
+              pub_key

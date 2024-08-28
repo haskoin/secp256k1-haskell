@@ -16,6 +16,10 @@ data LCtx
 
 data PubKey64
 
+data XOPubKey32
+
+data KeyPair
+
 data Msg32
 
 data Sig64

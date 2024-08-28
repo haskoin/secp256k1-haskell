@@ -1,4 +1,5 @@
 {-# LANGUAGE DuplicateRecordFields #-}
+
 -- |
 -- Module      : Crypto.Secp256k1
 -- License     : UNLICENSE
@@ -57,6 +58,15 @@ module Crypto.Secp256k1
     tweakMulPubKey,
     combinePubKeys,
     tweakNegate,
+
+    -- * BIP340 Support
+    XOnlyPubKey,
+    deriveXOnlyPubKey,
+    Rand32,
+    mkRand32,
+    Bip340Sig,
+    signBip340,
+    verifyBip340,
   )
 where
 

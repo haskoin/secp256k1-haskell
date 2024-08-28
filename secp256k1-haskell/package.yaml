@@ -1,5 +1,5 @@
 name: secp256k1-haskell
-version: 1.2.0
+version: 1.3.0
 synopsis: Bindings for secp256k1
 description: Sign and verify signatures using the secp256k1 library.
 category: Crypto
@@ -37,8 +37,7 @@ tests:
       - -rtsopts
       - -with-rtsopts=-N
     verbatim:
-      build-tool-depends:
-          hspec-discover:hspec-discover
+      build-tool-depends: hspec-discover:hspec-discover
     dependencies:
       - hspec
       - secp256k1-haskell

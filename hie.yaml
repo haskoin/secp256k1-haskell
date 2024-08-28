@@ -1,0 +1,7 @@
+cradle:
+  stack:
+    - path: "secp256k1-haskell/src"
+      component: "secp256k1-haskell:lib"
+
+    - path: "secp256k1-haskell/test"
+      component: "secp256k1-haskell:test:spec"
