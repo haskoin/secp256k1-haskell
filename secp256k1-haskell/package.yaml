@@ -1,5 +1,5 @@
 name: secp256k1-haskell
-version: 1.4.1
+version: 1.4.2
 synopsis: Bindings for secp256k1
 description: Sign and verify signatures using the secp256k1 library.
 category: Crypto
@@ -15,13 +15,13 @@ extra-source-files:
 dependencies:
   - base >=4.9 && <5
   - base16 >=1.0
-  - bytestring >=0.10.8 && <0.13
-  - entropy >=0.3.8 && <0.5
-  - deepseq >=1.4.2 && <1.6
-  - hashable >=1.2.6 && <1.5
-  - QuickCheck >=2.9.2 && <2.16
-  - string-conversions >=0.4 && <0.5
-  - unliftio-core >=0.1.0 && <0.3
+  - bytestring >=0.10.8
+  - entropy >=0.3.8
+  - deepseq >=1.4.2
+  - hashable >=1.2.6
+  - QuickCheck >=2.9.2
+  - string-conversions >=0.4
+  - unliftio-core >=0.1.0
 library:
   source-dirs: src
   generated-exposed-modules:

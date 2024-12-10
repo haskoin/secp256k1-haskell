@@ -5,7 +5,7 @@ cabal-version: 2.0
 -- see: https://github.com/sol/hpack
 
 name:           secp256k1-haskell
-version:        1.4.1
+version:        1.4.2
 synopsis:       Bindings for secp256k1
 description:    Sign and verify signatures using the secp256k1 library.
 category:       Crypto
@@ -40,15 +40,15 @@ library
   pkgconfig-depends:
       libsecp256k1
   build-depends:
-      QuickCheck >=2.9.2 && <2.16
+      QuickCheck >=2.9.2
     , base >=4.9 && <5
     , base16 >=1.0
-    , bytestring >=0.10.8 && <0.13
-    , deepseq >=1.4.2 && <1.6
-    , entropy >=0.3.8 && <0.5
-    , hashable >=1.2.6 && <1.5
-    , string-conversions ==0.4.*
-    , unliftio-core >=0.1.0 && <0.3
+    , bytestring >=0.10.8
+    , deepseq >=1.4.2
+    , entropy >=0.3.8
+    , hashable >=1.2.6
+    , string-conversions >=0.4
+    , unliftio-core >=0.1.0
   default-language: Haskell2010
 
 test-suite spec
@@ -65,18 +65,18 @@ test-suite spec
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       HUnit
-    , QuickCheck >=2.9.2 && <2.16
+    , QuickCheck >=2.9.2
     , base >=4.9 && <5
     , base16 >=1.0
-    , bytestring >=0.10.8 && <0.13
-    , deepseq >=1.4.2 && <1.6
-    , entropy >=0.3.8 && <0.5
-    , hashable >=1.2.6 && <1.5
+    , bytestring >=0.10.8
+    , deepseq >=1.4.2
+    , entropy >=0.3.8
+    , hashable >=1.2.6
     , hspec
     , monad-par
     , mtl
     , secp256k1-haskell
-    , string-conversions ==0.4.*
-    , unliftio-core >=0.1.0 && <0.3
+    , string-conversions >=0.4
+    , unliftio-core >=0.1.0
   default-language: Haskell2010
   build-tool-depends: hspec-discover:hspec-discover
