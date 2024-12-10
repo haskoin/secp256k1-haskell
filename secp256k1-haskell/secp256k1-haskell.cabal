@@ -1,11 +1,11 @@
 cabal-version: 2.0
 
--- This file has been generated from package.yaml by hpack version 0.36.0.
+-- This file has been generated from package.yaml by hpack version 0.37.0.
 --
 -- see: https://github.com/sol/hpack
 
 name:           secp256k1-haskell
-version:        1.4.0
+version:        1.4.1
 synopsis:       Bindings for secp256k1
 description:    Sign and verify signatures using the secp256k1 library.
 category:       Crypto
@@ -40,7 +40,7 @@ library
   pkgconfig-depends:
       libsecp256k1
   build-depends:
-      QuickCheck >=2.9.2 && <2.15
+      QuickCheck >=2.9.2 && <2.16
     , base >=4.9 && <5
     , base16 >=1.0
     , bytestring >=0.10.8 && <0.13
@@ -65,7 +65,7 @@ test-suite spec
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       HUnit
-    , QuickCheck >=2.9.2 && <2.15
+    , QuickCheck >=2.9.2 && <2.16
     , base >=4.9 && <5
     , base16 >=1.0
     , bytestring >=0.10.8 && <0.13

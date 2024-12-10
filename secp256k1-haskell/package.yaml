@@ -1,5 +1,5 @@
 name: secp256k1-haskell
-version: 1.4.0
+version: 1.4.1
 synopsis: Bindings for secp256k1
 description: Sign and verify signatures using the secp256k1 library.
 category: Crypto
@@ -19,7 +19,7 @@ dependencies:
   - entropy >=0.3.8 && <0.5
   - deepseq >=1.4.2 && <1.6
   - hashable >=1.2.6 && <1.5
-  - QuickCheck >=2.9.2 && <2.15
+  - QuickCheck >=2.9.2 && <2.16
   - string-conversions >=0.4 && <0.5
   - unliftio-core >=0.1.0 && <0.3
 library:
